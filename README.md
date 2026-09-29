@@ -9,6 +9,9 @@ EV Charging Fleet Alarm & Maintenance Management System
 | **ประเภทโครงการ** | เว็บแอปพลิเคชัน (Full-stack Web Application) |
 | **เทคโนโลยีหลัก** | Next.js 14 (App Router) + Supabase (PostgreSQL) |
 | **ฐานข้อมูล** | Supabase (PostgreSQL 15+) พร้อม Row Level Security |
+| **Source Code** | https://github.com/PalaponB/supabase |
+| **CI** | https://github.com/PalaponB/supabase/actions — ✅ ผ่าน |
+| **Deployment** | ยังไม่ได้ deploy (ดูหัวข้อ 5) |
 
 ---
 
@@ -548,7 +551,13 @@ git push -u origin main
 
 **สถานะการตรวจสอบ**
 
-คำสั่งทั้งสามถูกรันและผ่านทั้งหมดในเครื่อง (`npm ci` → 442 packages, `npm run lint` → ไม่มี warning, `npm run build` → สำเร็จ 15 routes) แต่ **workflow บน GitHub จะยังไม่เริ่มทำงานจนกว่าโปรเจกต์จะถูก push ขึ้น GitHub** ตามขั้นตอนในหัวข้อ 4.6 ตอนนี้ยังไม่มีรอบการรันจริงบน GitHub Actions
+Workflow ทำงานจริงแล้วและผ่าน — ดู [รอบการรันล่าสุด](https://github.com/PalaponB/supabase/actions) บน GitHub Actions
+
+| รอบ | commit | ผลลัพธ์ |
+| --- | --- | --- |
+| [`36586154300`](https://github.com/PalaponB/supabase/actions/runs/36586154300) | `34b1862` | ✅ **success** |
+
+ทั้งสามขั้นตอนผ่านทั้งบนเครื่อง (`npm ci` → 442 packages, `npm run lint` → ไม่มี warning, `npm run build` → สำเร็จ 15 routes) และบน runner ของ GitHub
 
 ---
 
@@ -868,13 +877,13 @@ parseAiAnalysis()  ── ไม่ผ่าน ──▶ ลองใหม่ 
 | 3.8 กำหนดความสัมพันธ์อย่างเหมาะสม | ครบ | ดูหัวข้อ 3 + ER diagram |
 | 3.8 เก็บ Secret ใน Environment Variables ไม่ Commit | ครบ | `.env.local` ถูก `.gitignore` ตัดออก, มีแต่ `.env.example` |
 | 3.8 ไม่เปิดเผย Service Role Key ฝั่ง Client | ครบ | ไม่มีการ import service role key ที่ใดเลย |
-| 3.9 เก็บ Source Code บน GitHub | **ต้องทำ** | ดูหัวข้อ 4.6 |
-| 3.9 มีประวัติ Commit ระหว่างพัฒนา | **ต้องทำ** | commit แยกตามฟีเจอร์ ไม่ commit รวมทีเดียว |
+| 3.9 เก็บ Source Code บน GitHub | ครบ | https://github.com/PalaponB/supabase |
+| 3.9 มีประวัติ Commit ระหว่างพัฒนา | ครบ | 14 commits แยกตามฟีเจอร์ ไม่ได้ commit รวมทีเดียวเมื่อทำเสร็จ |
 | 3.9 มี README | ครบ | ไฟล์นี้ |
 | 3.10 มี GitHub Actions อย่างน้อย 1 Workflow | ครบ | `.github/workflows/ci.yml` |
 | 3.10 ลำดับ Install → Build → Lint | ครบ | job `verify` เรียงตามลำดับ |
-| 3.10 แสดงผล Passed/Failed ชัดเจน | ครบ | ตารางสรุปในหน้า run + ปุ่ม Fail |
-| 3.11 Deploy ด้วย Vercel | **ต้องทำ** | ดูหัวข้อ 5 |
+| 3.10 แสดงผล Passed/Failed ชัดเจน | ครบ | ตารางสรุปในหน้า run + ปุ่ม Fail — ยืนยันแล้วว่ารอบล่าสุดเป็น ✅ success |
+| 3.11 Deploy ด้วย Vercel | **ต้องทำ** | ดูหัวข้อ 5 — ยังไม่ได้ deploy |
 | 3.12 README ครบ 6 หัวข้อ | ครบ | หัวข้อ 1–6 |
 | 4 รายละเอียดการใช้ AI | ครบ | หัวข้อ 6 + `AI_USAGE_REPORT.md` |
 
