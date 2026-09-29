@@ -35,9 +35,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user && !isPublicRoute) {
+    // Keep the destination so login can return the user to it, but do not carry
+    // the original query string across: it would reappear as a stray filter on
+    // the login URL, and the protected page will re-read it from its own params.
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
-    // Keep the original destination so login can return the user to it.
+    redirectUrl.search = '';
     redirectUrl.searchParams.set('next', pathname);
     return NextResponse.redirect(redirectUrl);
   }

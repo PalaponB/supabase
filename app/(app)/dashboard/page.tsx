@@ -136,7 +136,7 @@ export default async function DashboardPage() {
           icon={PlugZap}
           tone="brand"
           hint={`พร้อมใช้งาน ${formatCount(available)} ตู้ · ${percentOf(available, total)}% ของทั้งหมด`}
-          href="/dashboard/machines"
+          href="/machines"
           accent={MACHINE_STATUS_COLOR.Available}
         />
         <KpiCard
@@ -145,7 +145,7 @@ export default async function DashboardPage() {
           icon={Siren}
           tone={activeAlarms > 0 ? 'red' : 'emerald'}
           hint={`เปิด ${formatCount(openAlarms.count ?? 0)} · กำลังทำ ${formatCount(inProgressAlarms.count ?? 0)} · ปิดแล้ว ${formatCount(closedAlarms)}`}
-          href="/dashboard/alarms"
+          href="/alarms"
           accent={MACHINE_STATUS_COLOR.Fault}
         />
         <KpiCard
@@ -154,7 +154,7 @@ export default async function DashboardPage() {
           icon={Wrench}
           tone={pending > 0 ? 'amber' : 'emerald'}
           hint={`เสร็จแล้ว ${formatCount(completed)} จาก ${formatCount(maintenanceTotal)} รายการ · รออะไหล่ ${formatCount(waitingPart.count ?? 0)}`}
-          href="/dashboard/maintenance"
+          href="/maintenance"
           accent={MACHINE_STATUS_COLOR['Under Service']}
         />
         <KpiCard
@@ -163,7 +163,7 @@ export default async function DashboardPage() {
           icon={AlertTriangle}
           tone={fault > 0 ? 'red' : 'emerald'}
           hint={`อยู่ระหว่างซ่อมอีก ${formatCount(underService)} ตู้`}
-          href="/dashboard/machines"
+          href="/machines"
           accent={MACHINE_STATUS_COLOR.Fault}
         />
       </div>

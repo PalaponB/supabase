@@ -20,6 +20,17 @@ export const PERMISSIONS = {
   manageAlarms: ['Admin', 'Technician'] as const,
   deleteAlarms: ['Admin'] as const,
 
+  /**
+   * Rewriting an alarm's machine, code, description or cause, as opposed to
+   * moving it through its states. Split out from manageAlarms so a Technician
+   * works the queue without being able to rewrite history.
+   *
+   * RLS cannot restrict this by column, so the policy still lets a Technician
+   * update any alarm column; this flag is the application-layer half of the
+   * control.
+   */
+  editAlarmDetails: ['Admin'] as const,
+
   /** Log maintenance work. Technicians may edit only their own entries. */
   manageMaintenance: ['Admin', 'Technician'] as const,
   deleteMaintenance: ['Admin'] as const,
@@ -42,6 +53,6 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export const ROLE_DESCRIPTION: Record<Role, string> = {
   Admin: 'เข้าถึงทุกหน้า เพิ่ม แก้ไข และลบข้อมูลได้ครบถ้วน',
-  Technician: 'ดูเครื่องจักร อัปเดตสถานะ Alarm และบันทึกงานซ่อมบำรุง',
+  Technician: 'ดูเครื่องจักร เปลี่ยนสถานะ Alarm และบันทึกงานซ่อมบำรุงของตนเอง',
   Viewer: 'ดูข้อมูลอย่างเดียว แก้ไขไม่ได้',
 };

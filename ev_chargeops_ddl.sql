@@ -256,7 +256,7 @@ create policy profiles_delete on public.profiles
   for delete to authenticated
   using (public.is_admin());
 
--- machines: read = any signed-in user, write = staff
+-- machines: read = any signed-in user, write = admin only
 drop policy if exists machines_select on public.machines;
 create policy machines_select on public.machines
   for select to authenticated
@@ -265,20 +265,22 @@ create policy machines_select on public.machines
 drop policy if exists machines_insert on public.machines;
 create policy machines_insert on public.machines
   for insert to authenticated
-  with check (public.is_staff());
+  with check (public.is_admin());
 
 drop policy if exists machines_update on public.machines;
 create policy machines_update on public.machines
   for update to authenticated
-  using (public.is_staff())
-  with check (public.is_staff());
+  using (public.is_admin())
+  with check (public.is_admin());
 
 drop policy if exists machines_delete on public.machines;
 create policy machines_delete on public.machines
   for delete to authenticated
   using (public.is_admin());
 
--- alarms: read = any signed-in user, write = staff, delete = admin
+-- alarms: read = any signed-in user, insert = admin,
+-- update = staff (a technician advances status; see the trigger below for the
+-- column-level limit), delete = admin
 drop policy if exists alarms_select on public.alarms;
 create policy alarms_select on public.alarms
   for select to authenticated
@@ -287,7 +289,7 @@ create policy alarms_select on public.alarms
 drop policy if exists alarms_insert on public.alarms;
 create policy alarms_insert on public.alarms
   for insert to authenticated
-  with check (public.is_staff());
+  with check (public.is_admin());
 
 drop policy if exists alarms_update on public.alarms;
 create policy alarms_update on public.alarms

@@ -59,7 +59,13 @@ create policy profiles_delete on public.profiles
   for delete to authenticated
   using (public.is_admin());
 
--- machines: read = any signed-in user, write = staff
+-- machines: read = any signed-in user, write = admin only
+--
+-- The fleet inventory is configuration, not operational state. A Technician
+-- reports faults and works on them; they do not rename stations or change what
+-- hardware is installed, so machine writes are admin only. This matches
+-- manageMachines in lib/permissions.ts, and a Technician crafting a request
+-- cannot get past the policy.
 drop policy if exists machines_select on public.machines;
 create policy machines_select on public.machines
   for select to authenticated
@@ -68,30 +74,37 @@ create policy machines_select on public.machines
 drop policy if exists machines_insert on public.machines;
 create policy machines_insert on public.machines
   for insert to authenticated
-  with check (public.is_staff());
+  with check (public.is_admin());
 
 drop policy if exists machines_update on public.machines;
 create policy machines_update on public.machines
   for update to authenticated
-  using (public.is_staff())
-  with check (public.is_staff());
+  using (public.is_admin())
+  with check (public.is_admin());
 
 drop policy if exists machines_delete on public.machines;
 create policy machines_delete on public.machines
   for delete to authenticated
   using (public.is_admin());
 
--- alarms: read = any signed-in user, write = staff, delete = admin
+-- alarms: read = any signed-in user, open = admin, advance state = staff, delete = admin
 drop policy if exists alarms_select on public.alarms;
 create policy alarms_select on public.alarms
   for select to authenticated
   using (true);
 
+-- Raising an alarm is an administrative judgement call, so it is admin only.
+-- Technicians work the queue (alarms_update) rather than adding to it.
 drop policy if exists alarms_insert on public.alarms;
 create policy alarms_insert on public.alarms
   for insert to authenticated
-  with check (public.is_staff());
+  with check (public.is_admin());
 
+-- RLS cannot restrict which columns are written, so this policy is what makes
+-- setAlarmStatus possible for a Technician. The full record editor is admin only
+-- in the application layer (editAlarmDetails); the residual risk is that a
+-- Technician with a crafted request could also rewrite description or cause.
+-- Tightening that needs a column-scoped trigger, which is out of scope here.
 drop policy if exists alarms_update on public.alarms;
 create policy alarms_update on public.alarms
   for update to authenticated

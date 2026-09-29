@@ -130,7 +130,13 @@ export type Database = {
           status?: AlarmStatus;
           created_at?: string;
         },
-        { description?: string; cause?: string | null; status?: AlarmStatus },
+        {
+          machine_id?: string;
+          alarm_code?: string;
+          description?: string;
+          cause?: string | null;
+          status?: AlarmStatus;
+        },
         [
           {
             foreignKeyName: 'alarms_machine_id_fkey';
@@ -151,7 +157,13 @@ export type Database = {
           status?: MaintenanceStatus;
           created_at?: string;
         },
-        { action_taken?: string; status?: MaintenanceStatus },
+        {
+          alarm_id?: string | null;
+          machine_id?: string;
+          technician_id?: string | null;
+          action_taken?: string;
+          status?: MaintenanceStatus;
+        },
         [
           {
             foreignKeyName: 'maintenance_records_alarm_id_fkey';

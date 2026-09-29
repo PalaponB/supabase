@@ -5,14 +5,22 @@ import { getAuthContext } from '@/lib/auth';
 import { can, ROLE_LABEL } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
-import DashboardNav, { type NavItem } from '@/components/shell/DashboardNav';
+import AppNav, { type NavItem } from './AppNav';
 import ThemeToggle from '@/components/theme/ThemeToggle';
 
-const NAV_ITEMS: NavItem[] = [
+/**
+ * The authenticated application chrome: header, navigation and page frame.
+ *
+ * Lives in its own component rather than in a layout file because the routes it
+ * wraps are split across two segments (/dashboard plus the top level master data
+ * pages). A route group layout would work too, but keeping the markup here means
+ * the navigation and the guard stay in one place if the URL layout changes again.
+ */
+export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'ภาพรวม' },
-  { href: '/dashboard/machines', label: 'เครื่องจักร' },
-  { href: '/dashboard/alarms', label: 'Alarms' },
-  { href: '/dashboard/maintenance', label: 'งานซ่อมบำรุง' },
+  { href: '/machines', label: 'เครื่องจักร' },
+  { href: '/alarms', label: 'Alarms' },
+  { href: '/maintenance', label: 'งานซ่อมบำรุง' },
   { href: '/dashboard/team', label: 'สมาชิก' },
 ];
 
@@ -22,12 +30,14 @@ const ROLE_BADGE: Record<string, string> = {
   Viewer: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  // Every page under /dashboard sits behind this guard, so no child repeats the
-  // check. middleware already bounced anonymous users, but the session can also
-  // expire between the two hops, so this is not redundant.
+export default async function AppShell({ children }: { children: React.ReactNode }) {
   const context = await getAuthContext();
-  if (!context) redirect('/login');
+  if (!context) {
+    // The guard runs before any child renders, so a signed out visitor never
+    // receives protected markup. middleware already bounced them; the session
+    // can also expire between the two hops, so this is not redundant.
+    redirect('/login');
+  }
 
   const supabase = createClient();
   const { data: profile } = await supabase
@@ -60,7 +70,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </span>
           </Link>
 
-          <DashboardNav items={items} />
+          <AppNav items={items} />
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
             <span className="hidden text-right text-xs leading-tight sm:block">

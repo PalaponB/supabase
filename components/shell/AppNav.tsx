@@ -6,31 +6,34 @@ import { LayoutDashboard, PlugZap, Siren, Wrench, Users } from 'lucide-react';
 
 export type NavItem = { href: string; label: string };
 
-/**
- * Client nav so the active link can be derived from the current pathname.
- *
- * Exact match for /dashboard, prefix match for the rest, so /dashboard/alarms
- * does not leave both the parent and the child link highlighted. The labels are
- * supplied by the server layout, which already filtered out links the current
- * role may not open.
- */
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   '/dashboard': LayoutDashboard,
-  '/dashboard/machines': PlugZap,
-  '/dashboard/alarms': Siren,
-  '/dashboard/maintenance': Wrench,
+  '/machines': PlugZap,
+  '/alarms': Siren,
+  '/maintenance': Wrench,
   '/dashboard/team': Users,
 };
 
-export default function DashboardNav({ items }: { items: NavItem[] }) {
+/** Routes with no children, where a prefix match would wrongly stay highlighted. */
+const EXACT_ONLY = new Set(['/dashboard']);
+
+/**
+ * Client nav so the active link can be derived from the current pathname.
+ *
+ * Exact match for leaf routes, prefix match for the rest, so /dashboard does not
+ * stay highlighted while the operator is on /machines. The labels come from the
+ * server shell, which already filtered out links the current role may not open.
+ */
+export default function AppNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
 
   return (
     <nav className="order-3 -mx-1 w-full overflow-x-auto md:order-none md:mx-0 md:w-auto md:flex-1">
       <ul className="flex items-center gap-1 px-1">
         {items.map((item) => {
-          const active =
-            item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
+          const active = EXACT_ONLY.has(item.href)
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = ICONS[item.href] ?? PlugZap;
 
           return (

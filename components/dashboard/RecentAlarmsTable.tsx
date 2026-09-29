@@ -104,7 +104,7 @@ export default function RecentAlarmsTable({
           แสดง {formatCount(alarms.length)} รายการล่าสุด
         </p>
         <Link
-          href="/dashboard/alarms"
+          href="/alarms"
           className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300"
         >
           ดูทั้งหมด →
