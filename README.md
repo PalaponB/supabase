@@ -24,6 +24,7 @@ EV Charging Fleet Alarm & Maintenance Management System
 8. [ความปลอดภัย](#8-ชั้นความปลอดภัย)
 9. [โครงสร้างไฟล์](#9-โครงสร้างไฟล์)
 10. [ข้อจำกัดและงานต่อเนื่อง](#10-ข้อจำกัดและงานต่อเนื่อง)
+11. [ตารางเทียบข้อกำหนดกับสิ่งที่ระบบทำ](#11-ตารางเทียบข้อกำหนดกับสิ่งที่ระบบทำ)
 
 ---
 
@@ -88,13 +89,14 @@ EV Charging Fleet Alarm & Maintenance Management System
 
 | โมดูล | ความสามารถ |
 | --- | --- |
-| **เครื่องจักร** | เพิ่ม / แก้ไข / ลบ / เปลี่ยนสถานะ (`Available`, `Charging`, `Fault`, `Under Service`) |
+| **เครื่องจักร** | เพิ่ม / แก้ไข / ลบ / เปลี่ยนสถานะ (`Running`, `Stop`, `Alarm`, `Maintenance`) |
 | **Alarm** | เปิดใหม่ / แก้ไขรายละเอียด / เปลี่ยนสถานะ / ลบ พร้อมบันทึกค่าที่วัดได้ 3 ช่อง |
 | **งานซ่อมบำรุง** | เพิ่ม / แก้ไข / เปลี่ยนสถานะ (`In Progress`, `Completed`, `Waiting Part`) / ลบ โดยช่างแก้ไขได้เฉพาะงานของตัวเอง |
 
 #### C. Dashboard
 
-- การ์ด KPI: ตู้ทั้งหมด / พร้อมใช้งาน / กำลังชาร์จ / มีปัญหา
+- การ์ด KPI: ตู้ทั้งหมด / Active Alarms / งานซ่อมที่ค้าง / เครื่องที่มีปัญหา
+- การ์ดสถานะเครื่องจักรทั้ง 4 สถานะ (`Running`, `Stop`, `Alarm`, `Maintenance`) พร้อม % ของทั้งหมด กดเพื่อกรองต่อได้
 - กราฟโดนัทสถานะเครื่องจักร และกราฟแท่ง Top 5 Alarm ที่พบบ่อย
 - ตาราง Alarm ล่าสุด
 - หน้าจัดการสมาชิกและเปลี่ยนบทบาท (เฉพาะ Admin)
@@ -105,9 +107,9 @@ EV Charging Fleet Alarm & Maintenance Management System
 
 | หน้า | เงื่อนไข (รวมกันแบบ AND) |
 | --- | --- |
-| `/machines` | ค้นหา, สถานะ, สถานที่ตั้ง, ประเภท |
-| `/alarms` | ค้นหา, สถานะ, เครื่องจักร, ช่วงวันที่ |
-| `/maintenance` | ค้นหา, สถานะ, เครื่องจักร, ช่วงวันที่ |
+| `/machines` | ค้นหา, สถานะ, สถานที่ตั้ง, ประเภท (4 เงื่อนไข) |
+| `/alarms` | ค้นหา, สถานะ, เครื่องจักร, ช่วงวันที่ (5 เงื่อนไข) |
+| `/maintenance` | ค้นหา, สถานะ, เครื่องจักร, **ช่างผู้ซ่อม**, ช่วงวันที่ (6 เงื่อนไข) |
 
 จุดที่ออกแบบให้ระวัง:
 
@@ -274,7 +276,7 @@ auth.users (Supabase Auth)
 | `name` | `text` | NOT NULL | ชื่อสถานี เช่น "ตู้ชาร์จลานจอด B1" |
 | `type` | `text` | NOT NULL | ประเภทตู้ เช่น DC Fast Charger, AC Charger |
 | `location` | `text` | nullable | สถานที่ตั้ง เช่น "B1 ชั้น 2" |
-| `status` | `text` | NOT NULL, default `'Available'`<br>CHECK ∈ (`Available`, `Charging`, `Fault`, `Under Service`) | สถานะปัจจุบันของตู้ |
+| `status` | `text` | NOT NULL, default `'Stop'`<br>CHECK ∈ (`Running`, `Stop`, `Alarm`, `Maintenance`) | สถานะปัจจุบันของตู้ |
 | `created_at` | `timestamptz` | NOT NULL, default `now()` | เวลาสร้าง |
 | `updated_at` | `timestamptz` | NOT NULL, default `now()` | อัปเดตอัตโนมัติโดย Trigger `set_updated_at()` |
 
@@ -355,6 +357,7 @@ constraint maintenance_records_alarm_fkey
 | `03b3_logs.sql` | ข้อมูลงานซ่อมบำรุงตัวอย่าง |
 | `04_dashboard_views.sql` | View สำหรับกราฟบนหน้า Dashboard |
 | `05_alarm_telemetry.sql` | เพิ่มคอลัมน์ค่าที่วัดได้ (สำหรับฐานข้อมูลที่สร้างจาก `01_schema.sql` เวอร์ชันเก่า) |
+| `06_machine_status_migration.sql` | เปลี่ยนสถานะเครื่องเป็น `Running`/`Stop`/`Alarm`/`Maintenance` (สำหรับฐานข้อมูลเวอร์ชันเก่า) |
 | `ev_chargeops_ddl.sql` | ไฟล์รวมทุกอย่างไว้ที่เดียว (สะดวกตอนติดตั้งครั้งเดียว) |
 
 ---
@@ -386,10 +389,11 @@ constraint maintenance_records_alarm_fkey
    | 6 | `03b3_logs.sql` | ข้อมูลงานซ่อมบำรุง |
    | 7 | `04_dashboard_views.sql` | View สำหรับกราฟ |
    | 8 | `05_alarm_telemetry.sql` | คอลัมน์ค่าที่วัดได้ (ถ้าฐานข้อมูลยังไม่มี) |
+   | 9 | `06_machine_status_migration.sql` | สถานะเครื่องเวอร์ชันใหม่ (ถ้าฐานข้อมูลเคยใช้ค่าเก่า) |
 
    > `04_dashboard_views.sql` ต้องเป็น PostgreSQL 15 ขึ้นไป (Supabase เป็นอยู่แล้ว) ถ้าไม่รันไฟล์นี้ หน้า `/dashboard` จะแสดงผลว่างเพราะไม่มี view ให้อ่าน
    >
-   > `05_alarm_telemetry.sql` ต้องรันเฉพาะฐานข้อมูลที่สร้างจาก `01_schema.sql` **ก่อน** มีคอลัมน์เหล่านี้ ทุกคำสั่งเป็น idempotent จึงรันซ้ำได้ และฐานข้อมูลใหม่ที่รัน `01_schema.sql` เวอร์ชันล่าสุดไม่ต้องรันไฟล์นี้
+   > `05_alarm_telemetry.sql` และ `06_machine_status_migration.sql` ต้องรันเฉพาะฐานข้อมูลเวอร์ชันเก่าเท่านั้น ฐานข้อมูลใหม่ที่รัน `01_schema.sql` เวอร์ชันล่าสุดไม่ต้องรันสองไฟล์นี้ ทุกคำสั่งเป็น idempotent จึงรันซ้ำได้
 
 4. เปิด **Project Settings > Data API** (หรือ API) แล้วจดค่าไว้ 2 ตัว
 
@@ -521,19 +525,26 @@ git push -u origin main
 ทุกครั้งที่ push หรือเปิด Pull Request เข้า branch `main` / `master` ระบบจะตรวจสอบอัตโนมัติตามไฟล์ `.github/workflows/ci.yml`
 
 ```
-┌──────────────┐   ┌──────────────┐   ┌───────────────┐
-│ 1/2 · Lint   │   │ 2/2 · Build  │   │  CI Summary   │
-│  npm run lint│   │npm run build │   │  ✅ / ❌ ตาราง │
-└──────┬───────┘   └──────┬───────┘   └───────┬───────┘
-       └──────────────────┴───────────────────┘
-                          ▼
-              ถ้ามีข้อผิดพลาด → Workflow จะ Fail
+┌──────────────────────────────────────────────┐
+│  1. Install Dependencies   npm ci            │
+│            ▼                                 │
+│  2. Build Project          npm run build     │
+│            ▼                                 │
+│  3. Lint                   npm run lint      │
+│            ▼                                 │
+│  CI Summary  ✅ / ❌ ตารางผลลัพธ์ในหน้า run     │
+└──────────────────────────────────────────────┘
+         ถ้าขั้นใดล้มเหลว → ขั้นถัดไปจะไม่รัน
+         และ Workflow จะแสดงผล Failed
 ```
 
+- ทำงานเป็น **job เดียวเรียงตามลำดับ** เพราะข้อกำหนดระบุให้ตรวจสอบตามลำดับ Install → Build → Lint
+- เมื่อขั้นใดล้มเหลว ขั้นถัดไปจะไม่รัน จึงไม่มีกรณี Lint เขียวคู่กับ Build แดง
 - **Node.js 20** + npm cache → ติดตั้งเร็ว
 - ใช้ `npm ci` (ไม่ใช่ `npm install`) เพื่อให้ได้ dependency ตรงกับ lockfile ที่ commit ไว้เสมอ
-- สร้างตารางสรุปผล Pass/Fail ในหน้า run ทำให้เห็นผลได้ชัดเจนแม้ job หนึ่งล้มเหลว
+- สร้างตารางสรุปผล Pass/Fail ในหน้า run ทำให้เห็นผลได้ชัดเจนแม้ขั้นใดขั้นหนึ่งล้มเหลว
 - ยกเลิกรอบเก่าอัตโนมัติเมื่อมี push ใหม่เข้า branch เดียวกัน เพื่อไม่เสียเวลา CI
+- ไม่มี Secret ถูกส่งเข้า Workflow เลย ใช้เพียงค่า placeholder ที่เป็น public ตอน build
 
 **สถานะการตรวจสอบ**
 
@@ -555,11 +566,16 @@ git push -u origin main
 
 | ขั้นตอน | สิ่งที่ AI ช่วย | สิ่งที่ผู้พัฒนาตรวจ/ตัดสิน |
 | --- | --- | --- |
+| **วิเคราะห์ Requirement** | แตกข้อกำหนดเป็นงานย่อย, ชี้จุดที่ข้อกำหนดกำกวม | **เทียบกับเอกสารของอาจารย์ทุกครั้ง** — จุดนี้สำคัญที่สุด เพราะพบว่าสถานะเครื่องที่ระบบใช้เดิมไม่ตรงกับที่กำหนด (หัวข้อ 6.3 ข้อ 7) |
 | **ออกแบบฐานข้อมูล** | ร่าง DDL, constraint, CHECK ของค่าที่วัดได้, กลยุทธ์ Composite FK, ฟังก์ชันช่วยตรวจบทบาท | ตัดสินใจว่าจะบังคับ (alarm_id, machine_id) ต้องเป็นคู่เดียวกัน, ค่า null ≠ ค่า 0, เขียน migration แบบ idempotent |
-| **ออกแบบ RLS** | ร่าง policy 15 รายการ, ฟังก์ชัน `is_admin()` / `is_staff()` | ตรวจว่า policy ตรงกับสิทธิ์ใน `lib/permissions.ts` ทุกจุด และบันทึกข้อจำกัดระดับคอลัมน์ไว้ |
-| **พัฒนา UI Components** | สร้างฟอร์ม, ตาราง, ตัวกรอง, Modal, กราฟ, Dark mode | ปรับ UX ให้ตรงกับผู้ใช้ไทย และตรวจสอบว่าปุ่มที่ซ่อนไปสอดคล้องกับสิทธิ์จริง |
-| **เขียน CI Workflow** | ร่าง `.github/workflows/ci.yml` | ทดสอบทุกขั้นตอนจริง (`npm ci` / `lint` / `build`) และตรวจว่าไม่มี secret ถูกฝังใน workflow |
+| **เขียน SQL** | ร่าง RLS policy, view สำหรับกราฟ, seed data, migration เปลี่ยนสถานะ | ตรวจว่า policy ตรงกับสิทธิ์ใน `lib/permissions.ts` ทุกจุด และจับการ drift ระหว่างไฟล์ |
+| **เขียน Source Code** | สร้างหน้า, component, server action, API route, lib ต่าง ๆ | ตรวจด้วย typecheck / lint / build และอ่านโค้ดกลับทุกส่วน |
+| **สร้าง UI/UX** | ฟอร์ม, ตาราง, ตัวกรอง, Modal, กราฟ, Dark mode | ปรับ UX ให้ตรงกับผู้ใช้ไทย และตรวจว่าปุ่มที่ซ่อนไปสอดคล้องกับสิทธิ์จริง |
+| **เขียน CI Workflow** | ร่าง `.github/workflows/ci.yml` | ทดสอบทุกขั้นตอนจริง (`npm ci` / `build` / `lint`) และตรวจว่าไม่มี secret ถูกฝังใน workflow |
 | **Debugging** | ช่วยวิเคราะห์บั๊ก เสนอแนวทางแก้ และเขียนชุดทดสอบ | **ตรวจสอบบั๊กที่ AI พลาด** (ดูหัวข้อ 6.3) |
+| **สร้าง Test** | เขียนชุดทดสอบตรรกะ, เทสต์ edge case, สคริปต์ตรวจ README | ตรวจว่าเทสต์ "ผ่าน" จริง ไม่ใช่ผ่านเพราะเงื่อนไขผิด — เจอกรณีนี้จริงในหัวข้อ 6.3 ข้อ 8 |
+| **ปรับปรุง / Refactor** | จัดโครงสร้างโค้ด, ตั้งชื่อ, เขียนคอมเมนต์อธิบายเหตุผล | ตรวจว่าการ refactor ไม่ทำให้พฤติกรรมเดิมเปลี่ยน |
+| **ทำเอกสาร** | ร่าง README และรายงานการใช้ AI | **เทียบทุกข้อความกับโค้ดจริง** และห้ามอ้างสิ่งที่ยังไม่ได้ทำ เช่น ห้ามเขียนว่า deploy แล้ว |
 | **In-App AI Analyzer** | ออกแบบสัญญาข้อมูล (JSON Schema), เขียน prompt, ตัวตรวจผลลัพธ์, กลไก retry และ rate limit | กำหนดหมวดสาเหตุ, ตัดสินใจเพิ่ม `Insufficient Data`, ตรวจว่าไม่รั่วคีย์และไม่ส่งข้อมูลเกินจำเป็น |
 
 ### 6.3 ตัวอย่างบั๊กที่พบระหว่างพัฒนา — AI ช่วยระบุได้ แต่ต้องให้คนตรวจซ้ำ
@@ -597,6 +613,20 @@ git push -u origin main
 `ev_chargeops_ddl.sql` กับ `02_rls.sql` เกิดการ drift (policy ไม่ตรงกัน) เมื่อแก้ฝั่งหนึ่งแล้วลืมอีกฝั่ง
 
 > แก้โดยถือ `02_rls.sql` เป็นตัวกำหนดจริง และเขียนสคริปต์เทียบ policy ทั้ง 15 รายการเพื่อจับการ drift
+
+**7. สถานะเครื่องจักรไม่ตรงกับข้อกำหนดของโจทย์ — สำคัญที่สุด**
+
+ระบบเดิมใช้สถานะ `Available` / `Charging` / `Fault` / `Under Service` ซึ่งเป็นคำที่เหมาะกับตู้ชาร์จ แต่**ข้อกำหนดของอาจารย์ระบุชัดเจนว่า `Running`, `Stop`, `Alarm`, `Maintenance`** การเขียนระบบให้สมบูรณ์โดยไม่ได้เทียบกับเอกสารข้อกำหนด จึงทำให้คะแนน Functional Requirements และ Dashboard หายไปโดยไม่รู้ตัว
+
+> แก้ครบทั้งชั้น: `CHECK` constraint ใน `01_schema.sql`, TypeScript type, ป้ายภาษาไทย, สีบนกราฟ, ค่าเริ่มต้นในฟอร์ม, seed data, การ์ดสรุปบน Dashboard และเพิ่มการ์ดสถานะทั้ง 4 ใบโดยเฉพาะ พร้อมเขียน `06_machine_status_migration.sql` แปลงค่าของฐานข้อมูลเดิมแบบไม่สูญเสียข้อมูล
+
+**8. สคริปต์ตรวจ README รายงาน "ผ่าน" ทั้งที่ตัวตรวจเองผิด**
+
+สคริปต์ที่ใช้ตรวจ README อ้างว่าไฟล์ในผังโครงสร้างและ route ต่าง ๆ มีอยู่จริง แต่ regex ของมันจับได้แค่ชื่อไฟล์ ไม่ใช่พาธเต็ม และตรวจ API route ผิดไฟล์ รวมถึงตัดสระไทยออกจาก anchor ทำให้ลิงก์ที่ถูกต้องถูกรายงานว่าเสีย
+
+> แก้ตัวตรวจเองทั้ง 4 จุด (แยก path ตามระดับการเยื้อง, ตรวจ API route กับ filesystem, ตรวจข้อความโดยตรงแทนการเดาผ่าน regex, เก็บอักขระประสมไทยใน slug) แล้วรันซ้ำจนได้ 109 ข้อผ่านจริง — บั๊กนี้อยู่ในเครื่องมือตรวจ ไม่ใช่ในตัวระบบ แต่ถ้าไม่สังเกตก็จะเข้าใจผิดว่า README ถูกต้อง
+
+> **ข้อสังเกต:** บั๊กข้อ 7 และ 8 ไม่ใช่บั๊กที่ `typecheck`, `lint` หรือ `build` จับได้ ทั้งคู่ต้องใช้การอ่านเทียบกับเอกสารข้อกำหนด และการไม่เชื่อผลรายงานของเครื่องมือ
 
 ### 6.4 In-App AI Analyzer — การออกแบบที่คำนึงถึงความปลอดภัย
 
@@ -770,8 +800,10 @@ parseAiAnalysis()  ── ไม่ผ่าน ──▶ ลองใหม่ 
 ├── 03b3_logs.sql                     ข้อมูลงานซ่อมบำรุง
 ├── 04_dashboard_views.sql            View สำหรับกราฟ
 ├── 05_alarm_telemetry.sql            คอลัมน์ค่าที่วัดได้
+├── 06_machine_status_migration.sql   เปลี่ยนสถานะเครื่องเป็นชุดใหม่ (ฐานข้อมูลเวอร์ชันเก่า)
 ├── ev_chargeops_ddl.sql              ไฟล์รวมทุกอย่าง
 ├── package.json
+├── AI_USAGE_REPORT.md                 รายงานสั้นการใช้ AI ในการพัฒนา
 └── README.md
 ```
 
@@ -801,6 +833,65 @@ parseAiAnalysis()  ── ไม่ผ่าน ──▶ ลองใหม่ 
 - แจ้งเตือนผ่าน LINE Notify เมื่อมี Alarm ระดับ Critical
 - เพิ่มการแบ่งหน้า (pagination) เมื่อข้อมูลมีจำนวนมากขึ้น
 - ทดสอบอัตโนมัติด้วย Vitest / Playwright ให้ครบทุกเส้นทาง
+
+---
+
+## 11. ตารางเทียบข้อกำหนดกับสิ่งที่ระบบทำ
+
+ตารางนี้แสดงว่าข้อกำหนดแต่ละข้อถูกทำครบ และอยู่ที่ไหนในโค้ด
+
+| ข้อกำหนด | สถานะ | ตำแหน่งในระบบ |
+| --- | --- | --- |
+| 3.1 Login / Logout ผ่าน Supabase Auth | ครบ | `/login`, `app/auth/callback/route.ts` |
+| 3.1 อย่างน้อย 2 Role (Admin, Technician) | ครบ มี 3 | `profiles.role` = `Admin` / `Technician` / `Viewer` |
+| 3.1 Admin จัดการ Machine/Alarm/Maintenance | ครบ | `02_rls.sql` + `lib/permissions.ts` |
+| 3.1 Technician ดูเครื่องจักร / บันทึก+แก้ Maintenance / เปลี่ยนสถานะ Alarm / ดู Dashboard | ครบ | policy เขียนแยกต่อบทบาทใน `02_rls.sql` |
+| 3.1 ควบคุมสิทธิ์ตาม Role | ครบ | RLS บังคับที่ฐานข้อมูล + ซ่อนปุ่มฝั่ง UI |
+| 3.2 บันทึก Machine ID / Name / Type / Location / Status | ครบ | ตาราง `machines` |
+| 3.2 สถานะ Running, Stop, Alarm, Maintenance | ครบ | `machines_status_check` ใน `01_schema.sql` |
+| 3.2 Machine CRUD ครบ | ครบ | หน้า `/machines` + `app/machines/actions.ts` |
+| 3.3 บันทึก Machine / Alarm Code / Description / เวลา / Cause / Status | ครบ | ตาราง `alarms` |
+| 3.3 สถานะ Open, In Progress, Closed | ครบ | `alarms_status_check` |
+| 3.3 Alarm Create / Read / Update | ครบ | หน้า `/alarms` |
+| 3.4 Maintenance Create / Read / Update | ครบ | หน้า `/maintenance` |
+| 3.5 ค้นหา/กรองอย่างน้อย 2 เงื่อนไข | ครบ มี 4–6 | `/machines` 4 · `/alarms` 5 · `/maintenance` 6 |
+| 3.6 จำนวนเครื่องจักรทั้งหมด | ครบ | KPI ตู้ชาร์จทั้งหมด |
+| 3.6 จำนวน Running / Stop / Alarm / Maintenance | ครบ | การ์ดสถานะ 4 ใบ + กราฟโดนัท |
+| 3.6 จำนวน Alarm และงาน Maintenance | ครบ | KPI Active Alarms และ งานซ่อมที่ค้างอยู่ |
+| 3.6 กราฟ/ข้อมูลสรุปเพิ่มเติม | ครบ | กราฟโดนัท, กราฟแท่ง Top 5 Alarm, ตาราง Alarm ล่าสุด |
+| 3.7 ช่องสำคัญห้ามว่าง | ครบ | `lib/validation.ts` + `not null` ในฐานข้อมูล |
+| 3.7 Machine ID ห้ามซ้ำ | ครบ | `machines_machine_id_key unique` + จับ error `23505` |
+| 3.7 รูปแบบถูกต้องและกันค่าไม่เหมาะสม | ครบ | validate ทุกช่อง + CHECK constraint + escape LIKE |
+| 3.7 แสดงข้อความแจ้งเตือน | ครบ | แสดง error ใต้ช่อง และ alert บนหน้า |
+| 3.8 ใช้ Supabase เป็นฐานข้อมูล | ครบ | `@supabase/supabase-js` |
+| 3.8 มีตาราง profiles, machines, alarms, maintenance_records | ครบ | `01_schema.sql` |
+| 3.8 กำหนดความสัมพันธ์อย่างเหมาะสม | ครบ | ดูหัวข้อ 3 + ER diagram |
+| 3.8 เก็บ Secret ใน Environment Variables ไม่ Commit | ครบ | `.env.local` ถูก `.gitignore` ตัดออก, มีแต่ `.env.example` |
+| 3.8 ไม่เปิดเผย Service Role Key ฝั่ง Client | ครบ | ไม่มีการ import service role key ที่ใดเลย |
+| 3.9 เก็บ Source Code บน GitHub | **ต้องทำ** | ดูหัวข้อ 4.6 |
+| 3.9 มีประวัติ Commit ระหว่างพัฒนา | **ต้องทำ** | commit แยกตามฟีเจอร์ ไม่ commit รวมทีเดียว |
+| 3.9 มี README | ครบ | ไฟล์นี้ |
+| 3.10 มี GitHub Actions อย่างน้อย 1 Workflow | ครบ | `.github/workflows/ci.yml` |
+| 3.10 ลำดับ Install → Build → Lint | ครบ | job `verify` เรียงตามลำดับ |
+| 3.10 แสดงผล Passed/Failed ชัดเจน | ครบ | ตารางสรุปในหน้า run + ปุ่ม Fail |
+| 3.11 Deploy ด้วย Vercel | **ต้องทำ** | ดูหัวข้อ 5 |
+| 3.12 README ครบ 6 หัวข้อ | ครบ | หัวข้อ 1–6 |
+| 4 รายละเอียดการใช้ AI | ครบ | หัวข้อ 6 + `AI_USAGE_REPORT.md` |
+
+### คะแนนพิเศษที่ได้
+
+| หัวข้อพิเศษ | สถานะ | อยู่ที่ |
+| --- | --- | --- |
+| เพิ่ม Role `Viewer` | ได้ | `lib/permissions.ts` + RLS |
+| เพิ่มกราฟวิเคราะห์ Alarm | ได้ | Top 5 Alarm Codes + กราฟโดนัทสถานะ |
+| เพิ่ม Machine History | ได้ | `/machines/[machineId]` |
+| เพิ่ม Filter ขั้นสูง | ได้ | 4–6 เงื่อนไขต่อหน้า + ช่วงวันที่ตามเขตเวลาผู้ใช้ |
+| Export CSV / Excel | ได้ | ปุ่มส่งออก CSV ทั้ง 2 หน้า |
+| สถานะ `Waiting Part` | ได้ | `MAINTENANCE_STATUSES` |
+| Responsive UI / Dark Mode | ได้ | Tailwind dark mode + responsive ทุกหน้า |
+| Notification | ได้บางส่วน | Toast แจ้งผล แต่ยังไม่มี push/email |
+
+> Audit Log และ Notification แบบส่งอัตโนมัติยังไม่ได้ทำ ถ้าเวลาเหลือควรเพิ่ม เพราะเป็นอีก 2 หัวข้อพิเศษ
 
 ---
 
