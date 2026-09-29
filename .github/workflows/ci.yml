@@ -1,0 +1,120 @@
+name: CI
+
+# Runs on every push and pull request targeting the branches the project is
+# released from, so a change cannot reach main without being linted and built.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# Least privilege: CI only ever needs to read the repository. Without this, the
+# default token can be wider than necessary and a compromised action inherits it.
+permissions:
+  contents: read
+
+# A new push to the same branch makes any in-flight run obsolete, so the older run
+# is cancelled instead of burning minutes on a commit nobody will merge.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 1/2 · Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # Restores the npm cache keyed on the lockfile, which is what makes
+          # `npm ci` fast. Requires package-lock.json to be committed.
+          cache: npm
+
+      - name: Install dependencies
+        # `ci` instead of `install`: it installs exactly the locked versions and
+        # fails when package.json and package-lock.json disagree, so CI can never
+        # quietly pass against different dependencies than the ones committed.
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  build:
+    name: 2/2 · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Placeholders only. These two are public by design, which is why the anon
+      # key is already committed inside 01_schema.sql, so there is no secret here.
+      # They are supplied so the build compiles the same way it does in
+      # production rather than only succeeding because the values are absent.
+      # No OpenAI key is passed: the analyzer is a dynamic route handler that is
+      # never executed at build time, so the build must work without one.
+      - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+        run: npm run build
+
+  summary:
+    name: CI Summary
+    # `always()` so the report is produced even when an earlier job failed, which
+    # is exactly when the reader wants to see which check broke.
+    if: always()
+    needs: [lint, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report results
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+        run: |
+          case "$LINT_RESULT" in
+            success)   LINT_ICON="✅" ;;
+            failure)   LINT_ICON="❌" ;;
+            cancelled) LINT_ICON="🚫" ;;
+            *)         LINT_ICON="⏭️" ;;
+          esac
+          case "$BUILD_RESULT" in
+            success)   BUILD_ICON="✅" ;;
+            failure)   BUILD_ICON="❌" ;;
+            cancelled) BUILD_ICON="🚫" ;;
+            *)         BUILD_ICON="⏭️" ;;
+          esac
+
+          {
+            echo "## CI Result"
+            echo ""
+            echo "| Check | Result |"
+            echo "| --- | --- |"
+            echo "| Lint | $LINT_ICON $LINT_RESULT |"
+            echo "| Build | $BUILD_ICON $BUILD_RESULT |"
+            echo ""
+            echo "Commit: \`${{ github.sha }}\` on \`${{ github.ref_name }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Turn a failed check into a failed workflow, so the run cannot report
+      # success while one of its required jobs is red.
+      - name: Fail the workflow if any check failed
+        if: needs.lint.result != 'success' || needs.build.result != 'success'
+        run: |
+          echo "::error::CI failed (lint: $LINT_RESULT, build: $BUILD_RESULT)"
+          exit 1
