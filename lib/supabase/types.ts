@@ -4,7 +4,9 @@
 
 export type Role = 'Admin' | 'Technician' | 'Viewer';
 
-export type MachineStatus = 'Available' | 'Charging' | 'Fault' | 'Under Service';
+// The four statuses the course specification names explicitly: Running, Stop,
+// Alarm and Maintenance. The order is the display order used by the dashboard.
+export type MachineStatus = 'Running' | 'Stop' | 'Alarm' | 'Maintenance';
 export type AlarmStatus = 'Open' | 'In Progress' | 'Closed';
 export type MaintenanceStatus = 'In Progress' | 'Completed' | 'Waiting Part';
 

@@ -44,12 +44,13 @@ create table if not exists public.machines (
   name        text not null,
   type        text not null,
   location    text,
-  status      text not null default 'Available',
+  status      text not null default 'Stop',
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint machines_machine_id_key unique (machine_id),
+  -- The four statuses named in the course specification (section 3.2).
   constraint machines_status_check
-    check (status in ('Available', 'Charging', 'Fault', 'Under Service'))
+    check (status in ('Running', 'Stop', 'Alarm', 'Maintenance'))
 );
 
 create table if not exists public.alarms (

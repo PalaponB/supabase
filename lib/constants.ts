@@ -1,17 +1,17 @@
 import type { AlarmStatus, MachineStatus, MaintenanceStatus } from './supabase/types';
 
 export const MACHINE_STATUSES: MachineStatus[] = [
-  'Available',
-  'Charging',
-  'Fault',
-  'Under Service',
+  'Running',
+  'Stop',
+  'Alarm',
+  'Maintenance',
 ];
 
 export const MACHINE_STATUS_LABEL: Record<MachineStatus, string> = {
-  Available: 'พร้อมใช้งาน',
-  Charging: 'กำลังชาร์จ',
-  Fault: 'มีความผิดปกติ',
-  'Under Service': 'อยู่ระหว่างซ่อม',
+  Running: 'กำลังทำงาน',
+  Stop: 'หยุดทำงาน',
+  Alarm: 'มีสัญญาณเตือน',
+  Maintenance: 'กำลังซ่อมบำรุง',
 };
 
 export const ALARM_STATUSES: AlarmStatus[] = ['Open', 'In Progress', 'Closed'];

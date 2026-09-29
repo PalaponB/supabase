@@ -82,7 +82,7 @@ export function CreateMachineForm() {
         <select
           id="status"
           name="status"
-          defaultValue="Available"
+          defaultValue="Stop"
           className="field"
           aria-invalid={Boolean(state.fieldErrors?.status)}
         >

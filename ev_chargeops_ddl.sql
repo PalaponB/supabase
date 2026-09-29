@@ -70,12 +70,13 @@ create table if not exists public.machines (
   name        text not null,
   type        text not null,
   location    text,
-  status      text not null default 'Available',
+  status      text not null default 'Stop',
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint machines_machine_id_key unique (machine_id),
+  -- The four statuses named in the course specification (section 3.2).
   constraint machines_status_check
-    check (status in ('Available', 'Charging', 'Fault', 'Under Service'))
+    check (status in ('Running', 'Stop', 'Alarm', 'Maintenance'))
 );
 
 create table if not exists public.alarms (
@@ -362,7 +363,7 @@ update public.profiles set role = $$Technician$$ where id = $$33333333-3333-4333
 
 select count(*) as seeded_users from public.profiles;
 
-insert into public.machines (machine_id, name, type, location, status) values ($$EV-DC-01$$, $$DC Charger Zone A Unit 1$$, $$DC Fast Charger 150kW$$, $$B1 Parking Zone A$$, $$Fault$$), ($$EV-DC-02$$, $$DC Charger Zone A Unit 2$$, $$DC Fast Charger 150kW$$, $$B1 Parking Zone A$$, $$Charging$$), ($$EV-AC-03$$, $$Public AC Charger$$, $$AC Charger 22kW$$, $$Public Lot Level 1$$, $$Available$$), ($$EV-DC-04$$, $$DC Charger Logistics Hub$$, $$DC Fast Charger 60kW$$, $$Ladkrabang DC Hub$$, $$Under Service$$), ($$EV-AC-05$$, $$HQ AC Charger$$, $$AC Charger 22kW$$, $$HQ Ground Floor VIP$$, $$Available$$), ($$EV-DC-06$$, $$Highway DC Station$$, $$DC Fast Charger 350kW$$, $$Chao Phraya Bridge Rest Stop$$, $$Charging$$) on conflict (machine_id) do nothing;
+insert into public.machines (machine_id, name, type, location, status) values ($$EV-DC-01$$, $$DC Charger Zone A Unit 1$$, $$DC Fast Charger 150kW$$, $$B1 Parking Zone A$$, $$Alarm$$), ($$EV-DC-02$$, $$DC Charger Zone A Unit 2$$, $$DC Fast Charger 150kW$$, $$B1 Parking Zone A$$, $$Running$$), ($$EV-AC-03$$, $$Public AC Charger$$, $$AC Charger 22kW$$, $$Public Lot Level 1$$, $$Stop$$), ($$EV-DC-04$$, $$DC Charger Logistics Hub$$, $$DC Fast Charger 60kW$$, $$Ladkrabang DC Hub$$, $$Maintenance$$), ($$EV-AC-05$$, $$HQ AC Charger$$, $$AC Charger 22kW$$, $$HQ Ground Floor VIP$$, $$Stop$$), ($$EV-DC-06$$, $$Highway DC Station$$, $$DC Fast Charger 350kW$$, $$Chao Phraya Bridge Rest Stop$$, $$Running$$) on conflict (machine_id) do nothing;
 
 insert into public.alarms (machine_id, alarm_code, description, cause, status, created_at) select id, $$ERR-CABLE-01$$, $$Charging gun fails to lock with the CCS2 connector$$, $$Lock actuator jammed, cable damaged$$, $$Open$$, now() - make_interval(days => 2) from public.machines where machine_id = $$EV-DC-01$$ and not exists (select 1 from public.alarms where alarm_code = $$ERR-CABLE-01$$);
 

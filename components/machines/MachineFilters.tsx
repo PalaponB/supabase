@@ -6,7 +6,7 @@ import { MACHINE_STATUSES, MACHINE_STATUS_LABEL } from '@/lib/constants';
 
 /**
  * Four independent conditions, combined with AND. Any combination may be used
- * together, e.g. Status = Fault AND Location contains "รัชดา" AND search "EVB-02".
+ * together, e.g. Status = Alarm AND Location contains "รัชดา" AND search "EVB-02".
  */
 const FIELDS = ['search', 'status', 'location', 'type'] as const;
 

@@ -13,10 +13,10 @@ import { ALARM_STATUS_LABEL, MACHINE_STATUS_LABEL, MACHINE_STATUSES } from './co
  * counts, so colour is never the only carrier of meaning.
  */
 export const MACHINE_STATUS_COLOR: Record<MachineStatus, string> = {
-  Available: '#10b981',
-  Charging: '#3b82f6',
-  Fault: '#ef4444',
-  'Under Service': '#f59e0b',
+  Running: '#10b981',
+  Stop: '#3b82f6',
+  Alarm: '#ef4444',
+  Maintenance: '#f59e0b',
 };
 
 export const ALARM_STATUS_COLOR: Record<AlarmStatus, string> = {
