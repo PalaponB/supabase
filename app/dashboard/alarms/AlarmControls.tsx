@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useFormState } from 'react-dom';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { createAlarm, deleteAlarm, setAlarmStatus } from './actions';
 import { ALARM_STATUSES, ALARM_STATUS_LABEL } from '@/lib/constants';
 import type { AlarmStatus } from '@/lib/supabase/types';
@@ -18,8 +19,11 @@ export function CreateAlarmForm({
   const [state, formAction, pending] = useFormState(createAlarm, initialState);
 
   return (
-    <form action={formAction} className="row-form">
-      <select name="machine_id" required defaultValue="">
+    <form
+      action={formAction}
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5"
+    >
+      <select name="machine_id" required defaultValue="" className="field lg:col-span-2">
         <option value="" disabled>
           เลือกเครื่องจักร
         </option>
@@ -29,33 +33,38 @@ export function CreateAlarmForm({
           </option>
         ))}
       </select>
-      <input name="alarm_code" placeholder="รหัส เช่น ERR-CABLE-01" required />
-      <input name="description" placeholder="รายละเอียด" required />
-      <input name="cause" placeholder="สาเหตุ" />
-      <select name="status" defaultValue="Open">
+      <input name="alarm_code" placeholder="รหัส เช่น ERR-CABLE-01" className="field" required />
+      <input name="description" placeholder="รายละเอียด" className="field" required />
+      <input name="cause" placeholder="สาเหตุ" className="field" />
+      <select name="status" defaultValue="Open" className="field">
         {ALARM_STATUSES.map((status) => (
           <option key={status} value={status}>
             {ALARM_STATUS_LABEL[status]}
           </option>
         ))}
       </select>
-      <button type="submit" className="small" disabled={pending}>
-        {pending ? 'กำลังเพิ่ม...' : 'เปิด Alarm'}
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        )}
+        เปิด Alarm
       </button>
 
       {state.error ? (
-        <p role="alert" className="error">
+        <p role="alert" className="alert-error sm:col-span-2 lg:col-span-5">
           {state.error}
         </p>
       ) : null}
-      {state.ok ? <p className="ok">{state.ok}</p> : null}
+      {state.ok ? <p className="alert-ok sm:col-span-2 lg:col-span-5">{state.ok}</p> : null}
     </form>
   );
 }
 
 /**
- * Admin and Technician. The status select is the main Technician action.
- * When canDelete is false the delete button is not rendered at all.
+ * Admin and Technician. The status select is the main Technician action. When
+ * canDelete is false the delete button is not rendered at all.
  */
 export function AlarmRowActions({
   alarmId,
@@ -78,11 +87,12 @@ export function AlarmRowActions({
   };
 
   return (
-    <div className="row-form">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         defaultValue={currentStatus}
         disabled={pending}
         aria-label={`สถานะของ ${alarmCode}`}
+        className="field w-auto py-1.5 text-xs"
         onChange={(event) => {
           const next = event.target.value as AlarmStatus;
           void run(() => setAlarmStatus(alarmId, next));
@@ -98,7 +108,7 @@ export function AlarmRowActions({
       {canDelete ? (
         <button
           type="button"
-          className="small danger"
+          className="btn btn-sm btn-danger"
           disabled={pending}
           onClick={() => {
             if (window.confirm(`ยืนยันการลบ Alarm ${alarmCode} หรือไม่?`)) {
@@ -106,16 +116,20 @@ export function AlarmRowActions({
             }
           }}
         >
+          {pending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
           ลบ
         </button>
       ) : null}
 
-      {message.error ? (
-        <p role="alert" className="error">
-          {message.error}
-        </p>
-      ) : null}
-      {message.ok ? <p className="ok">{message.ok}</p> : null}
+      <span role="status" aria-live="polite" className="text-xs">
+        {pending ? <span className="text-ink-subtle dark:text-slate-500">กำลังบันทึก...</span> : null}
+        {message.error ? <span className="text-red-600 dark:text-red-400">{message.error}</span> : null}
+        {message.ok ? <span className="text-emerald-600 dark:text-emerald-400">{message.ok}</span> : null}
+      </span>
     </div>
   );
 }

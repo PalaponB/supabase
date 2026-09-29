@@ -50,11 +50,49 @@ export type MaintenanceRecord = {
   updated_at: string;
 };
 
-type Table<Row, Insert = Partial<Row>, Update = Partial<Insert>> = {
+/**
+ * Foreign key metadata.
+ *
+ * The postgrest-js type parser needs this to understand embedded resources like
+ * `select('*, machines(machine_id)')`. Without it the embed is typed as a
+ * SelectQueryError instead of the joined row, which silently degrades every
+ * nested select to an error type.
+ */
+type Relation = {
+  foreignKeyName: string;
+  columns: string[];
+  isOneToOne?: boolean;
+  referencedRelation: string;
+  referencedColumns: string[];
+};
+
+type Table<
+  Row,
+  Insert = Partial<Row>,
+  Update = Partial<Insert>,
+  Relationships extends Relation[] = [],
+> = {
   Row: Row;
   Insert: Insert;
   Update: Update;
+  Relationships: Relationships;
+};
+
+type View<Row> = {
+  Row: Row;
   Relationships: [];
+};
+
+/** Row shape of public.machine_status_summary (see 04_dashboard_views.sql). */
+export type MachineStatusSummary = {
+  status: MachineStatus;
+  station_count: number;
+};
+
+/** Row shape of public.top_alarm_codes (see 04_dashboard_views.sql). */
+export type TopAlarmCode = {
+  alarm_code: string;
+  occurrences: number;
 };
 
 export type Database = {
@@ -92,7 +130,16 @@ export type Database = {
           status?: AlarmStatus;
           created_at?: string;
         },
-        { description?: string; cause?: string | null; status?: AlarmStatus }
+        { description?: string; cause?: string | null; status?: AlarmStatus },
+        [
+          {
+            foreignKeyName: 'alarms_machine_id_fkey';
+            columns: ['machine_id'];
+            isOneToOne: false;
+            referencedRelation: 'machines';
+            referencedColumns: ['id'];
+          },
+        ]
       >;
       maintenance_records: Table<
         MaintenanceRecord,
@@ -104,10 +151,36 @@ export type Database = {
           status?: MaintenanceStatus;
           created_at?: string;
         },
-        { action_taken?: string; status?: MaintenanceStatus }
+        { action_taken?: string; status?: MaintenanceStatus },
+        [
+          {
+            foreignKeyName: 'maintenance_records_alarm_id_fkey';
+            columns: ['alarm_id'];
+            isOneToOne: false;
+            referencedRelation: 'alarms';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'maintenance_records_machine_id_fkey';
+            columns: ['machine_id'];
+            isOneToOne: false;
+            referencedRelation: 'machines';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'maintenance_records_technician_id_fkey';
+            columns: ['technician_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ]
       >;
     };
-    Views: Record<string, never>;
+    Views: {
+      machine_status_summary: View<MachineStatusSummary>;
+      top_alarm_codes: View<TopAlarmCode>;
+    };
     Functions: {
       current_role: { Args: Record<PropertyKey, never>; Returns: string };
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
@@ -120,5 +193,11 @@ export type Database = {
 
 export type Tables<T extends keyof Database['public']['Tables']> =
   Database['public']['Tables'][T]['Row'];
+
+export type TablesInsert<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Insert'];
+
+export type TablesUpdate<T extends keyof Database['public']['Tables']> =
+  Database['public']['Tables'][T]['Update'];
 
 export type { Json };

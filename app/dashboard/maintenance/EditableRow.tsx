@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import type { MaintenanceStatus } from '@/lib/supabase/types';
 import { EditMaintenanceForm } from './MaintenanceControls';
 
@@ -22,7 +23,8 @@ export function EditableRow({
 
   if (!editing) {
     return (
-      <button type="button" className="small" onClick={() => setEditing(true)}>
+      <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
+        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
         แก้ไข
       </button>
     );

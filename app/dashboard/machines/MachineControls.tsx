@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useFormState } from 'react-dom';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { createMachine, deleteMachine, setMachineStatus } from './actions';
 import { MACHINE_STATUSES, MACHINE_STATUS_LABEL } from '@/lib/constants';
 import type { MachineStatus } from '@/lib/supabase/types';
@@ -9,33 +10,38 @@ import type { MachineStatus } from '@/lib/supabase/types';
 type State = { error: string | null; ok: string | null };
 const initialState: State = { error: null, ok: null };
 
-/** Admin only: the create form is only rendered when the role check passes. */
+/** Admin only: the form is only rendered once the role check passes. */
 export function CreateMachineForm() {
   const [state, formAction, pending] = useFormState(createMachine, initialState);
 
   return (
-    <form action={formAction} className="row-form">
-      <input name="machine_id" placeholder="รหัสเครื่องจักร" required />
-      <input name="name" placeholder="ชื่อเครื่องจักร" required />
-      <input name="type" placeholder="ประเภท เช่น DC Fast Charger 150kW" required />
-      <input name="location" placeholder="สถานที่ตั้ง" />
-      <select name="status" defaultValue="Available">
+    <form action={formAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <input name="machine_id" placeholder="รหัสเครื่องจักร" className="field" required />
+      <input name="name" placeholder="ชื่อเครื่องจักร" className="field" required />
+      <input name="type" placeholder="ประเภท เช่น DC Fast 150kW" className="field" required />
+      <input name="location" placeholder="สถานที่ตั้ง" className="field" />
+      <select name="status" defaultValue="Available" className="field">
         {MACHINE_STATUSES.map((status) => (
           <option key={status} value={status}>
             {MACHINE_STATUS_LABEL[status]}
           </option>
         ))}
       </select>
-      <button type="submit" className="small" disabled={pending}>
-        {pending ? 'กำลังเพิ่ม...' : 'เพิ่มเครื่องจักร'}
+      <button type="submit" className="btn btn-primary" disabled={pending}>
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        )}
+        เพิ่มเครื่องจักร
       </button>
 
       {state.error ? (
-        <p role="alert" className="error">
+        <p role="alert" className="alert-error sm:col-span-2 lg:col-span-6">
           {state.error}
         </p>
       ) : null}
-      {state.ok ? <p className="ok">{state.ok}</p> : null}
+      {state.ok ? <p className="alert-ok sm:col-span-2 lg:col-span-6">{state.ok}</p> : null}
     </form>
   );
 }
@@ -60,11 +66,13 @@ export function MachineRowActions({
   };
 
   return (
-    <div className="row-form">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         name="status"
         defaultValue={currentStatus}
         disabled={pending}
+        aria-label={`เปลี่ยนสถานะ ${machineLabel}`}
+        className="field w-auto py-1.5 text-xs"
         onChange={(event) => {
           const next = event.target.value as MachineStatus;
           void run(() => setMachineStatus(machineId, next));
@@ -79,7 +87,7 @@ export function MachineRowActions({
 
       <button
         type="button"
-        className="small danger"
+        className="btn btn-sm btn-danger"
         disabled={pending}
         onClick={() => {
           const confirmed = window.confirm(
@@ -88,15 +96,23 @@ export function MachineRowActions({
           if (confirmed) void run(() => deleteMachine(machineId));
         }}
       >
-        {pending ? 'กำลังทำงาน...' : 'ลบ'}
+        {pending ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+        )}
+        ลบ
       </button>
 
-      {message.error ? (
-        <p role="alert" className="error">
-          {message.error}
-        </p>
-      ) : null}
-      {message.ok ? <p className="ok">{message.ok}</p> : null}
+      {/* aria-live so the outcome of the select is announced to screen readers
+          instead of only appearing visually. */}
+      <span role="status" aria-live="polite" className="text-xs">
+        {pending ? <span className="text-ink-subtle dark:text-slate-500">กำลังบันทึก...</span> : null}
+        {message.error ? <span className="text-red-600 dark:text-red-400">{message.error}</span> : null}
+        {message.ok ? (
+          <span className="text-emerald-600 dark:text-emerald-400">{message.ok}</span>
+        ) : null}
+      </span>
     </div>
   );
 }

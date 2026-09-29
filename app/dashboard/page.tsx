@@ -1,9 +1,24 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import {
+  Activity,
+  AlertTriangle,
+  CircleCheckBig,
+  Clock,
+  Info,
+  PlugZap,
+  Siren,
+  Wrench,
+} from 'lucide-react';
 import { requireUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase/server';
-import { formatDateTime } from '@/lib/format';
+import type { MachineStatus } from '@/lib/supabase/types';
+import { buildStatusRows, formatCount, MACHINE_STATUS_COLOR, percentOf } from '@/lib/dashboard';
+import KpiCard from '@/components/dashboard/KpiCard';
+import StatusBreakdown from '@/components/dashboard/StatusBreakdown';
+import { LazyStatusDonutChart, LazyTopAlarmsBarChart } from '@/components/dashboard/lazy-charts';
+import RecentAlarmsTable from '@/components/dashboard/RecentAlarmsTable';
 
 export const metadata: Metadata = { title: 'ภาพรวม' };
 
@@ -11,120 +26,205 @@ export default async function DashboardPage() {
   const { role } = await requireUser();
   const supabase = createClient();
 
-  // One round trip for the counts, one for the recent alarms. The counts use
-  // head requests so Postgres skips shipping rows back.
-  const [machineCount, alarmCount, openAlarmCount, maintenanceCount, recentAlarms] =
-    await Promise.all([
-      supabase.from('machines').select('*', { count: 'exact', head: true }),
-      supabase.from('alarms').select('*', { count: 'exact', head: true }),
-      supabase
-        .from('alarms')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['Open', 'In Progress']),
-      supabase.from('maintenance_records').select('*', { count: 'exact', head: true }),
-      supabase
-        .from('alarms')
-        .select('id, alarm_code, description, status, created_at, machines(machine_id, name)')
-        .order('created_at', { ascending: false })
-        .limit(5),
-    ]);
+  // Every count is independent, so they all run in parallel instead of in
+  // sequence. head: true makes Postgres return the count without sending rows.
+  // The two views aggregate inside the database, which keeps the chart queries
+  // from transferring a whole table just to count it in JavaScript.
+  const [
+    totalStations,
+    statusSummary,
+    totalAlarms,
+    openAlarms,
+    inProgressAlarms,
+    totalMaintenance,
+    waitingPart,
+    pendingMaintenance,
+    topAlarmCodes,
+    recentAlarms,
+  ] = await Promise.all([
+    supabase.from('machines').select('*', { count: 'exact', head: true }),
+    supabase.from('machine_status_summary').select('status, station_count'),
+    supabase.from('alarms').select('*', { count: 'exact', head: true }),
+    supabase.from('alarms').select('*', { count: 'exact', head: true }).eq('status', 'Open'),
+    supabase
+      .from('alarms')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'In Progress'),
+    supabase.from('maintenance_records').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('maintenance_records')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'Waiting Part'),
+    supabase
+      .from('maintenance_records')
+      .select('*', { count: 'exact', head: true })
+      .neq('status', 'Completed'),
+    supabase.from('top_alarm_codes').select('alarm_code, occurrences'),
+    supabase
+      .from('alarms')
+      .select('id, alarm_code, description, status, created_at, machines(machine_id, name)')
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ]);
 
-  const faultCount = await supabase
-    .from('machines')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'Fault');
+  // The view only returns statuses that have at least one station. Collect them
+  // into a sparse map and let buildStatusRows fill the missing ones with zero so
+  // the chart and legend keep all four statuses.
+  const counts = {} as Partial<Record<MachineStatus, number>>;
+  for (const row of statusSummary.data ?? []) {
+    counts[row.status] = row.station_count;
+  }
+  const statusRows = buildStatusRows(counts);
 
-  const stats = [
-    { label: 'เครื่องจักรทั้งหมด', value: machineCount.count ?? 0, to: '/dashboard/machines' },
-    { label: 'Alarms ทั้งหมด', value: alarmCount.count ?? 0, to: '/dashboard/alarms' },
-    {
-      label: 'Alarms ที่ยังค้างอยู่',
-      value: openAlarmCount.count ?? 0,
-      to: '/dashboard/alarms',
-    },
-    { label: 'เครื่องจักรที่มีความผิดปกติ', value: faultCount.count ?? 0, to: '/dashboard/machines' },
-    {
-      label: 'งานซ่อมบำรุง',
-      value: maintenanceCount.count ?? 0,
-      to: '/dashboard/maintenance',
-    },
-  ];
+  const total = totalStations.count ?? 0;
+  const available = statusRows.find((row) => row.status === 'Available')?.count ?? 0;
+  const fault = statusRows.find((row) => row.status === 'Fault')?.count ?? 0;
+  const underService = statusRows.find((row) => row.status === 'Under Service')?.count ?? 0;
 
-  const canSeeTeam = can(role, 'manageRoles');
+  const activeAlarms = (openAlarms.count ?? 0) + (inProgressAlarms.count ?? 0);
+  const closedAlarms = (totalAlarms.count ?? 0) - activeAlarms;
+
+  const maintenanceTotal = totalMaintenance.count ?? 0;
+  const pending = pendingMaintenance.count ?? 0;
+  const completed = maintenanceTotal - pending;
+
+  const roleNotice = {
+    Admin: null,
+    Technician:
+      'บัญชีของคุณเป็น Technician จึงอัปเดตสถานะ Alarm และบันทึกงานซ่อมบำรุงได้ แต่จะไม่เห็นปุ่มจัดการเครื่องจักร',
+    Viewer: 'บัญชีของคุณเป็น Viewer จึงดูข้อมูลได้อย่างเดียว ปุ่มแก้ไขจะไม่แสดง',
+  }[role];
 
   return (
-    <>
-      <div className="page-head">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1>ภาพรวมระบบ</h1>
-          <p className="muted">สถานะเครื่องจักรชาร์จและงานซ่อมบำรุงล่าสุด</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-slate-50">
+            ภาพรวมระบบ
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+            สถานะตู้ชาร์จไฟฟ้า Alarms และงานซ่อมบำรุง
+          </p>
         </div>
+
+        <p className="inline-flex items-center gap-1.5 text-xs text-ink-subtle dark:text-slate-500">
+          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>
+            ข้อมูล ณ{' '}
+            {new Date().toLocaleString('th-TH', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+              timeZone: 'Asia/Bangkok',
+            })}
+          </span>
+        </p>
       </div>
 
-      {role === 'Viewer' ? (
-        <p className="notice">
-          บัญชีของคุณเป็น <strong>Viewer</strong> จึงดูข้อมูลได้อย่างเดียว ปุ่มแก้ไขจะไม่แสดง
+      {roleNotice ? (
+        <p className="alert-info flex items-start gap-2">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{roleNotice}</span>
         </p>
       ) : null}
 
-      <section className="stat-grid">
-        {stats.map((stat) => (
-          <Link key={stat.label} href={stat.to} className="stat">
-            <p className="label">{stat.label}</p>
-            <p className="value">{stat.value}</p>
-          </Link>
-        ))}
+      {/* Headline KPIs. Each is the number an operator acts on first, and links
+          to the page where that number can actually be acted on. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="ตู้ชาร์จทั้งหมด"
+          value={total}
+          icon={PlugZap}
+          tone="brand"
+          hint={`พร้อมใช้งาน ${formatCount(available)} ตู้ · ${percentOf(available, total)}% ของทั้งหมด`}
+          href="/dashboard/machines"
+          accent={MACHINE_STATUS_COLOR.Available}
+        />
+        <KpiCard
+          label="Active Alarms"
+          value={activeAlarms}
+          icon={Siren}
+          tone={activeAlarms > 0 ? 'red' : 'emerald'}
+          hint={`เปิด ${formatCount(openAlarms.count ?? 0)} · กำลังทำ ${formatCount(inProgressAlarms.count ?? 0)} · ปิดแล้ว ${formatCount(closedAlarms)}`}
+          href="/dashboard/alarms"
+          accent={MACHINE_STATUS_COLOR.Fault}
+        />
+        <KpiCard
+          label="งานซ่อมบำรุงที่ค้างอยู่"
+          value={pending}
+          icon={Wrench}
+          tone={pending > 0 ? 'amber' : 'emerald'}
+          hint={`เสร็จแล้ว ${formatCount(completed)} จาก ${formatCount(maintenanceTotal)} รายการ · รออะไหล่ ${formatCount(waitingPart.count ?? 0)}`}
+          href="/dashboard/maintenance"
+          accent={MACHINE_STATUS_COLOR['Under Service']}
+        />
+        <KpiCard
+          label="เครื่องที่มีความผิดปกติ"
+          value={fault}
+          icon={AlertTriangle}
+          tone={fault > 0 ? 'red' : 'emerald'}
+          hint={`อยู่ระหว่างซ่อมอีก ${formatCount(underService)} ตู้`}
+          href="/dashboard/machines"
+          accent={MACHINE_STATUS_COLOR.Fault}
+        />
+      </div>
+
+      <StatusBreakdown rows={statusRows} />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <section className="card lg:col-span-2">
+          <header className="card-header">
+            <h2 className="card-title">สัดส่วนสถานะตู้ชาร์จ</h2>
+            <Activity className="h-4 w-4 text-ink-subtle dark:text-slate-500" aria-hidden="true" />
+          </header>
+          <div className="p-5">
+            <LazyStatusDonutChart rows={statusRows} />
+          </div>
+        </section>
+
+        <section className="card lg:col-span-3">
+          <header className="card-header">
+            <h2 className="card-title">Top 5 Alarm Codes ที่พบบ่อยที่สุด</h2>
+            <span className="text-xs text-ink-subtle dark:text-slate-500">
+              นับจากทั้งหมด {formatCount(totalAlarms.count ?? 0)} รายการ
+            </span>
+          </header>
+          <div className="p-5">
+            <LazyTopAlarmsBarChart data={topAlarmCodes.data ?? []} />
+          </div>
+        </section>
+      </div>
+
+      <section className="card">
+        <header className="card-header">
+          <h2 className="card-title">Alarms ล่าสุด</h2>
+          {activeAlarms > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-500/10 dark:text-red-300">
+              <span aria-hidden="true" className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+              {formatCount(activeAlarms)} รายการยังค้างอยู่
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              <CircleCheckBig className="h-3.5 w-3.5" aria-hidden="true" />
+              ไม่มี Alarm ค้างอยู่
+            </span>
+          )}
+        </header>
+
+        <RecentAlarmsTable alarms={recentAlarms.data} error={recentAlarms.error?.message ?? null} />
       </section>
 
-      <section className="panel">
-        <h2>Alarms ล่าสุด</h2>
-        {recentAlarms.error ? (
-          <p className="error">โหลดข้อมูลไม่สำเร็จ: {recentAlarms.error.message}</p>
-        ) : recentAlarms.data.length === 0 ? (
-          <p className="empty">ยังไม่มีรายการ Alarm</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>รหัส</th>
-                <th>เครื่องจักร</th>
-                <th>รายละเอียด</th>
-                <th>สถานะ</th>
-                <th>เวลา</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentAlarms.data.map((alarm) => {
-                const machine = Array.isArray(alarm.machines)
-                  ? alarm.machines[0]
-                  : alarm.machines;
-
-                return (
-                  <tr key={alarm.id}>
-                    <td>
-                      <code>{alarm.alarm_code}</code>
-                    </td>
-                    <td>{machine?.name ?? '-'}</td>
-                    <td>{alarm.description}</td>
-                    <td>
-                      <span className={`status ${alarm.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {alarm.status}
-                      </span>
-                    </td>
-                    <td className="muted">{formatDateTime(alarm.created_at)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {canSeeTeam ? null : (
-        <p className="muted">
-          หน้า <Link href="/dashboard/team">สมาชิก</Link> เปิดให้เฉพาะผู้ดูแลระบบ
+      {!can(role, 'manageRoles') ? (
+        <p className="text-xs text-ink-subtle dark:text-slate-500">
+          หน้า{' '}
+          <Link
+            href="/dashboard/team"
+            className="text-brand-700 hover:underline dark:text-brand-300"
+          >
+            สมาชิก
+          </Link>{' '}
+          เปิดให้เฉพาะผู้ดูแลระบบ
         </p>
-      )}
-    </>
+      ) : null}
+    </div>
   );
 }
