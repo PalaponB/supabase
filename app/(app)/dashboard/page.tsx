@@ -77,9 +77,13 @@ export default async function DashboardPage() {
   const statusRows = buildStatusRows(counts);
 
   const total = totalStations.count ?? 0;
-  const available = statusRows.find((row) => row.status === 'Available')?.count ?? 0;
-  const fault = statusRows.find((row) => row.status === 'Fault')?.count ?? 0;
-  const underService = statusRows.find((row) => row.status === 'Under Service')?.count ?? 0;
+  // Spec 3.6 requires the four statuses to be countable on the dashboard, so
+  // each one is pulled out of the summary explicitly rather than only being
+  // drawn in the donut chart.
+  const running = statusRows.find((row) => row.status === 'Running')?.count ?? 0;
+  const stopped = statusRows.find((row) => row.status === 'Stop')?.count ?? 0;
+  const alarmMachines = statusRows.find((row) => row.status === 'Alarm')?.count ?? 0;
+  const maintenanceMachines = statusRows.find((row) => row.status === 'Maintenance')?.count ?? 0;
 
   const activeAlarms = (openAlarms.count ?? 0) + (inProgressAlarms.count ?? 0);
   const closedAlarms = (totalAlarms.count ?? 0) - activeAlarms;
@@ -135,18 +139,18 @@ export default async function DashboardPage() {
           value={total}
           icon={PlugZap}
           tone="brand"
-          hint={`พร้อมใช้งาน ${formatCount(available)} ตู้ · ${percentOf(available, total)}% ของทั้งหมด`}
+          hint={`กำลังทำงาน ${formatCount(running)} · หยุด ${formatCount(stopped)} · เตือน ${formatCount(alarmMachines)} · ซ่อม ${formatCount(maintenanceMachines)}`}
           href="/machines"
-          accent={MACHINE_STATUS_COLOR.Available}
+          accent={MACHINE_STATUS_COLOR.Running}
         />
         <KpiCard
           label="Active Alarms"
           value={activeAlarms}
           icon={Siren}
           tone={activeAlarms > 0 ? 'red' : 'emerald'}
-          hint={`เปิด ${formatCount(openAlarms.count ?? 0)} · กำลังทำ ${formatCount(inProgressAlarms.count ?? 0)} · ปิดแล้ว ${formatCount(closedAlarms)}`}
+          hint={`เปิด ${formatCount(openAlarms.count ?? 0)} · กำลังทำ ${formatCount(inProgressAlarms.count ?? 0)} · ปิดแล้ว ${formatCount(closedAlarms)} · รวม ${formatCount(totalAlarms.count ?? 0)} รายการ`}
           href="/alarms"
-          accent={MACHINE_STATUS_COLOR.Fault}
+          accent={MACHINE_STATUS_COLOR.Alarm}
         />
         <KpiCard
           label="งานซ่อมบำรุงที่ค้างอยู่"
@@ -155,18 +159,46 @@ export default async function DashboardPage() {
           tone={pending > 0 ? 'amber' : 'emerald'}
           hint={`เสร็จแล้ว ${formatCount(completed)} จาก ${formatCount(maintenanceTotal)} รายการ · รออะไหล่ ${formatCount(waitingPart.count ?? 0)}`}
           href="/maintenance"
-          accent={MACHINE_STATUS_COLOR['Under Service']}
+          accent={MACHINE_STATUS_COLOR.Maintenance}
         />
         <KpiCard
           label="เครื่องที่มีความผิดปกติ"
-          value={fault}
+          value={alarmMachines}
           icon={AlertTriangle}
-          tone={fault > 0 ? 'red' : 'emerald'}
-          hint={`อยู่ระหว่างซ่อมอีก ${formatCount(underService)} ตู้`}
+          tone={alarmMachines > 0 ? 'red' : 'emerald'}
+          hint={`อยู่ระหว่างซ่อมอีก ${formatCount(maintenanceMachines)} ตู้`}
           href="/machines"
-          accent={MACHINE_STATUS_COLOR.Fault}
+          accent={MACHINE_STATUS_COLOR.Alarm}
         />
       </div>
+
+      {/* Spec 3.6 asks for the count of each of the four statuses, so they are
+          also shown as their own cards rather than only inside the chart. */}
+      <section>
+        <h2 className="mb-3 text-sm font-medium text-ink-muted dark:text-slate-400">
+          จำนวนเครื่องจักรแยกตามสถานะ
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {statusRows.map((row) => (
+            <KpiCard
+              key={row.status}
+              label={row.label}
+              value={row.count}
+              icon={row.status === 'Alarm' ? AlertTriangle : row.status === 'Maintenance' ? Wrench : Activity}
+              tone={
+                row.status === 'Alarm'
+                  ? 'red'
+                  : row.status === 'Maintenance'
+                    ? 'amber'
+                    : 'brand'
+              }
+              hint={`${percentOf(row.count, total)}% ของเครื่องจักรทั้งหมด`}
+              href={`/machines?status=${encodeURIComponent(row.status)}`}
+              accent={row.color}
+            />
+          ))}
+        </div>
+      </section>
 
       <StatusBreakdown rows={statusRows} />
 
