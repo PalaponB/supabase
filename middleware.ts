@@ -26,6 +26,12 @@ export async function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
+  // API routes answer with a status code and a JSON body, not a redirect. The
+  // session is still refreshed above, so an API handler reads a live cookie; it
+  // just returns 401 itself instead of being bounced to the login form, which
+  // would otherwise arrive as HTML the client cannot parse.
+  const isApiRoute = pathname.startsWith('/api/');
+
   // Signed-in users have no reason to see the login form.
   if (user && isPublicRoute && pathname === '/login') {
     const redirectUrl = request.nextUrl.clone();
@@ -34,7 +40,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !isApiRoute) {
     // Keep the destination so login can return the user to it, but do not carry
     // the original query string across: it would reappear as a stray filter on
     // the login URL, and the protected page will re-read it from its own params.

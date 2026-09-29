@@ -35,6 +35,20 @@ export const PERMISSIONS = {
   manageMaintenance: ['Admin', 'Technician'] as const,
   deleteMaintenance: ['Admin'] as const,
 
+  /**
+   * Ask the AI analyzer to suggest a cause and a repair checklist.
+   *
+   * Admin and Technician only: a Viewer is read-only, and diagnosing a fault is
+   * exactly the work a Technician is on shift to do.
+   *
+   * This is a UX gate, not a security boundary, and it is the only permission
+   * here with no matching RLS policy. The route handler checks it, then reads
+   * the alarm through the caller's own session, so a Technician can only ever
+   * analyze an alarm they could already see. The real constraint is that the
+   * call costs money, which the route's rate limit handles.
+   */
+  useAiAnalysis: ['Admin', 'Technician'] as const,
+
   /** Only an Admin may change a role. */
   manageRoles: ['Admin'] as const,
 } as const satisfies Record<string, readonly Role[]>;

@@ -20,7 +20,99 @@ export type AlarmValues = {
   description: string;
   cause: string;
   status: AlarmStatus;
+  /**
+   * Kept as strings because the inputs are uncontrolled (defaultValue) and a
+   * null reading has to render as an empty box, not the text "null".
+   */
+  voltagePeak: string;
+  temperaturePeak: string;
+  currentPeak: string;
 };
+
+/**
+ * The three peak telemetry inputs, shared by the create and edit forms.
+ *
+ * Deliberately optional: most rows predate the columns and not every station
+ * reports all three channels, and a blank means "unknown" to the analyzer
+ * rather than zero. min/max mirror the CHECK constraints so the browser catches
+ * an out-of-range value before the round trip.
+ */
+function TelemetryFields({
+  idPrefix,
+  values,
+  compact,
+  fieldErrors,
+}: {
+  idPrefix: string;
+  values?: AlarmValues;
+  compact?: boolean;
+  fieldErrors: Record<string, string> | null;
+}) {
+  const fields = [
+    {
+      name: 'voltage_peak',
+      label: 'แรงดันสูงสุด (V)',
+      placeholder: 'เช่น 402.5',
+      step: '0.01',
+      min: '0',
+      max: '1500',
+      value: values?.voltagePeak,
+    },
+    {
+      name: 'temperature_peak',
+      label: 'อุณหภูมิสูงสุด (°C)',
+      placeholder: 'เช่น 68.4',
+      step: '0.1',
+      min: '-50',
+      max: '250',
+      value: values?.temperaturePeak,
+    },
+    {
+      name: 'current_peak',
+      label: 'กระแสสูงสุด (A)',
+      placeholder: 'เช่น 63.0',
+      step: '0.1',
+      min: '0',
+      max: '1000',
+      value: values?.currentPeak,
+    },
+  ] as const;
+
+  return (
+    <>
+      {fields.map((field) => {
+        const inputId = `${idPrefix}-${field.name}`;
+        const errorId = `${inputId}-error`;
+        const hasError = Boolean(fieldErrors?.[field.name]);
+
+        return (
+          <Field
+            key={field.name}
+            label={field.label}
+            name={field.name}
+            htmlFor={inputId}
+            errors={fieldErrors}
+          >
+            <input
+              id={inputId}
+              name={field.name}
+              type="number"
+              inputMode="decimal"
+              step={field.step}
+              min={field.min}
+              max={field.max}
+              placeholder={field.placeholder}
+              defaultValue={field.value}
+              className={`field ${compact ? 'py-1.5 text-xs' : ''}`}
+              aria-invalid={hasError}
+              aria-describedby={hasError ? errorId : undefined}
+            />
+          </Field>
+        );
+      })}
+    </>
+  );
+}
 
 /**
  * Machine picker, mirrored into a hidden input.
@@ -138,6 +230,18 @@ export function CreateAlarmForm({ machines }: { machines: MachineOption[] }) {
           aria-describedby={state.fieldErrors?.cause ? 'cause-error' : undefined}
         />
       </Field>
+
+      <div className="sm:col-span-2 lg:col-span-3">
+        <p className="mb-1 text-xs text-ink-subtle dark:text-slate-500">
+          ค่าที่วัดได้ตอนเกิด Alarm (ไม่บังคับ) ใช้ประกอบการวิเคราะห์ด้วย AI
+        </p>
+        <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-3">
+          <TelemetryFields
+            idPrefix="create"
+            fieldErrors={state.fieldErrors}
+          />
+        </div>
+      </div>
 
       <div className="flex items-end gap-2 pb-0.5 sm:col-span-2 lg:col-span-3">
         <SubmitButton label="เปิด Alarm" pendingLabel="กำลังเพิ่ม..." icon={Plus} />
@@ -271,6 +375,18 @@ export function EditAlarmForm({
           ))}
         </select>
       </Field>
+
+      {/* The three readings travel with the form. Without them the action would
+          write null over whatever was stored, and saving a description typo
+          would silently destroy the telemetry the AI analyzer depends on. */}
+      <div className="flex flex-wrap gap-x-3 sm:col-span-2 lg:col-span-6">
+        <TelemetryFields
+          idPrefix={alarmUuid}
+          values={values}
+          compact
+          fieldErrors={state.fieldErrors}
+        />
+      </div>
 
       <div className="flex items-center gap-1.5 pb-0.5 sm:col-span-2 lg:col-span-6">
         <SubmitButton label="บันทึก" pendingLabel="กำลังบันทึก..." className="btn btn-sm" />

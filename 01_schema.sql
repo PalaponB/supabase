@@ -59,10 +59,26 @@ create table if not exists public.alarms (
   description text not null,
   cause       text,
   status      text not null default 'Open',
+  -- Peak telemetry captured when the alarm fired, for the AI analyzer. All three
+  -- are nullable because older rows predate the columns and because a station
+  -- may not report every channel. The analyzer treats a missing reading as
+  -- unknown rather than as zero, so leaving one blank is safe.
+  voltage_peak     numeric(7, 2),
+  temperature_peak numeric(6, 2),
+  current_peak     numeric(7, 2),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
   constraint alarms_status_check
     check (status in ('Open', 'In Progress', 'Closed')),
+  -- Generous bounds that still catch a misplaced decimal point or a sensor
+  -- reporting millivolts. 1500 V covers a 1000 V DC bus plus headroom;
+  -- 250 C is past the point where a power module is already damaged.
+  constraint alarms_voltage_peak_check
+    check (voltage_peak is null or (voltage_peak >= 0 and voltage_peak <= 1500)),
+  constraint alarms_temperature_peak_check
+    check (temperature_peak is null or (temperature_peak >= -50 and temperature_peak <= 250)),
+  constraint alarms_current_peak_check
+    check (current_peak is null or (current_peak >= 0 and current_peak <= 1000)),
   constraint alarms_machine_id_fkey
     foreign key (machine_id) references public.machines (id) on delete cascade,
   -- supports the composite FK below, keeping maintenance_records consistent

@@ -41,7 +41,16 @@ export async function createAlarm(
     };
   }
 
-  const { machineId, alarmCode, description, cause, status } = parsed.value;
+  const {
+    machineId,
+    alarmCode,
+    description,
+    cause,
+    status,
+    voltagePeak,
+    temperaturePeak,
+    currentPeak,
+  } = parsed.value;
   const supabase = createClient();
 
   // RLS would reject an unknown machine, but the foreign key error arrives as a
@@ -67,6 +76,9 @@ export async function createAlarm(
     description,
     cause,
     status,
+    voltage_peak: voltagePeak,
+    temperature_peak: temperaturePeak,
+    current_peak: currentPeak,
   });
 
   if (error) {
@@ -97,7 +109,16 @@ export async function updateAlarm(
     };
   }
 
-  const { machineId, alarmCode, description, cause, status } = parsed.value;
+  const {
+    machineId,
+    alarmCode,
+    description,
+    cause,
+    status,
+    voltagePeak,
+    temperaturePeak,
+    currentPeak,
+  } = parsed.value;
   const supabase = createClient();
 
   const { data: machine } = await supabase
@@ -116,7 +137,19 @@ export async function updateAlarm(
 
   const { error } = await supabase
     .from('alarms')
-    .update({ machine_id: machineId, alarm_code: alarmCode, description, cause, status })
+    .update({
+      machine_id: machineId,
+      alarm_code: alarmCode,
+      description,
+      cause,
+      status,
+      // Written as explicit nulls: clearing a reading in the form has to remove
+      // the stored value, otherwise an operator could never correct a typo back
+      // to "not reported".
+      voltage_peak: voltagePeak,
+      temperature_peak: temperaturePeak,
+      current_peak: currentPeak,
+    })
     .eq('id', alarmUuid);
 
   if (error) {

@@ -131,13 +131,63 @@ export function validateMachine(
   };
 }
 
+/**
+ * Peak telemetry ranges, matching the CHECK constraints in 01_schema.sql.
+ *
+ * These are duplicated on purpose. The database is the authority, but catching a
+ * typo here means the operator is told which reading is impossible instead of
+ * getting a generic constraint error after a round trip.
+ */
+const TELEMETRY_RANGE = {
+  voltage_peak: { min: 0, max: 1500, label: 'แรงดันสูงสุด', unit: 'โวลต์' },
+  temperature_peak: { min: -50, max: 250, label: 'อุณหภูมิสูงสุด', unit: 'องศาเซลเซียส' },
+  current_peak: { min: 0, max: 1000, label: 'กระแสสูงสุด', unit: 'แอมป์' },
+} as const;
+
+type TelemetryKey = keyof typeof TELEMETRY_RANGE;
+
+const TELEMETRY_KEYS = Object.keys(TELEMETRY_RANGE) as TelemetryKey[];
+
 export type AlarmInput = {
   machineId: string;
   alarmCode: string;
   description: string;
   cause: string | null;
   status: AlarmStatus;
+  voltagePeak: number | null;
+  temperaturePeak: number | null;
+  currentPeak: number | null;
 };
+
+/**
+ * Parses an optional telemetry reading.
+ *
+ * A blank field is a legitimate "not reported" state, not a zero, so it becomes
+ * null and the analyzer reports the channel as unknown. Rejecting rather than
+ * silently coercing matters here: Number('') is 0 and Number('abc') is NaN, and
+ * a 0 V peak would read as a dead station to the model.
+ */
+function optionalNumber(
+  errors: FieldErrors,
+  key: TelemetryKey,
+  raw: string,
+): number | null {
+  if (!raw) return null;
+
+  // Reject '12abc' and '1e5', which Number() would happily accept.
+  if (!/^-?\d+(\.\d+)?$/.test(raw)) {
+    errors[key] = `${TELEMETRY_RANGE[key].label}ต้องเป็นตัวเลข`;
+    return null;
+  }
+
+  const value = Number(raw);
+  const { min, max, label, unit } = TELEMETRY_RANGE[key];
+  if (value < min || value > max) {
+    errors[key] = `${label}ต้องอยู่ระหว่าง ${min} ถึง ${max} ${unit}`;
+    return null;
+  }
+  return value;
+}
 
 export function validateAlarm(
   formData: FormData,
@@ -171,6 +221,11 @@ export function validateAlarm(
     errors.status = 'กรุณาเลือกสถานะที่ถูกต้อง';
   }
 
+  const telemetry = {} as Record<TelemetryKey, number | null>;
+  for (const key of TELEMETRY_KEYS) {
+    telemetry[key] = optionalNumber(errors, key, text(formData, key));
+  }
+
   if (Object.keys(errors).length > 0) return { ok: false, fieldErrors: errors };
 
   return {
@@ -181,6 +236,9 @@ export function validateAlarm(
       description,
       cause: cause || null,
       status,
+      voltagePeak: telemetry.voltage_peak,
+      temperaturePeak: telemetry.temperature_peak,
+      currentPeak: telemetry.current_peak,
     },
   };
 }

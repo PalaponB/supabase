@@ -8,6 +8,7 @@ import { ALARM_STATUSES, ALARM_STATUS_LABEL } from '@/lib/constants';
 import type { AlarmStatus } from '@/lib/supabase/types';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { useActionToast } from '@/components/ui/SubmitButton';
+import AiAnalyzeButton from '@/components/ai/AiAnalyzeButton';
 import { EditAlarmForm, type AlarmValues, type MachineOption } from './AlarmForms';
 
 export type AlarmRow = {
@@ -19,6 +20,10 @@ export type AlarmRow = {
   cause: string | null;
   status: AlarmStatus;
   createdAt: string;
+  /** Peak telemetry for the AI analyzer; null when the station did not report it. */
+  voltagePeak: number | null;
+  temperaturePeak: number | null;
+  currentPeak: number | null;
 };
 
 /** The main Technician action: move an alarm between states without opening it. */
@@ -113,6 +118,7 @@ export default function AlarmTable({
   canManage,
   canEditDetails,
   canDelete,
+  canAnalyze,
   isFiltered,
 }: {
   rows: AlarmRow[];
@@ -122,11 +128,14 @@ export default function AlarmTable({
   /** Admin level: may rewrite the whole record. */
   canEditDetails: boolean;
   canDelete: boolean;
+  /** Technician level: may ask the AI for a suggested cause and checklist. */
+  canAnalyze: boolean;
   isFiltered: boolean;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  // The actions column only exists when there is something to put in it.
-  const showActions = canEditDetails || canDelete;
+  // The actions column only exists when there is something to put in it. A Viewer
+  // has none of the three, so they get a five column table.
+  const showActions = canAnalyze || canEditDetails || canDelete;
   const columnCount = showActions ? 6 : 5;
 
   if (rows.length === 0) {
@@ -178,6 +187,11 @@ export default function AlarmTable({
                           description: row.description,
                           cause: row.cause ?? '',
                           status: row.status,
+                          // Carried through so an edit does not clear the readings.
+                          voltagePeak: row.voltagePeak === null ? '' : String(row.voltagePeak),
+                          temperaturePeak:
+                            row.temperaturePeak === null ? '' : String(row.temperaturePeak),
+                          currentPeak: row.currentPeak === null ? '' : String(row.currentPeak),
                         } satisfies AlarmValues
                       }
                       machines={machines}
@@ -216,7 +230,7 @@ export default function AlarmTable({
                     </td>
                     {showActions ? (
                       <td className="whitespace-nowrap px-5 py-3">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {canEditDetails ? (
                             <button
                               type="button"
@@ -228,6 +242,9 @@ export default function AlarmTable({
                             </button>
                           ) : null}
                           {canDelete ? <DeleteButton row={row} /> : null}
+                          {canAnalyze ? (
+                            <AiAnalyzeButton alarmId={row.id} alarmCode={row.alarmCode} />
+                          ) : null}
                         </div>
                       </td>
                     ) : null}

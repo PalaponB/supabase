@@ -35,6 +35,10 @@ export type Alarm = {
   description: string;
   cause: string | null;
   status: AlarmStatus;
+  /** Peak telemetry from 05_alarm_telemetry.sql; null when never reported. */
+  voltage_peak: number | null;
+  temperature_peak: number | null;
+  current_peak: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -128,6 +132,9 @@ export type Database = {
           description: string;
           cause?: string | null;
           status?: AlarmStatus;
+          voltage_peak?: number | null;
+          temperature_peak?: number | null;
+          current_peak?: number | null;
           created_at?: string;
         },
         {
@@ -136,6 +143,9 @@ export type Database = {
           description?: string;
           cause?: string | null;
           status?: AlarmStatus;
+          voltage_peak?: number | null;
+          temperature_peak?: number | null;
+          current_peak?: number | null;
         },
         [
           {

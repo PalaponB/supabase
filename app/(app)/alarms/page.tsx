@@ -28,6 +28,7 @@ export default async function AlarmsPage({ searchParams }: Props) {
   const canManage = can(role, 'manageAlarms');
   const canEditDetails = can(role, 'editAlarmDetails');
   const canDelete = can(role, 'deleteAlarms');
+  const canAnalyze = can(role, 'useAiAnalysis');
 
   const filters = readAlarmFilters(searchParams);
   const tz = readTimezoneOffset(searchParams);
@@ -62,6 +63,11 @@ export default async function AlarmsPage({ searchParams }: Props) {
     cause: row.cause,
     status: row.status,
     createdAt: row.created_at,
+    // numeric columns can arrive as strings depending on the PostgREST config,
+    // so they are coerced rather than passed through.
+    voltagePeak: row.voltage_peak === null ? null : Number(row.voltage_peak),
+    temperaturePeak: row.temperature_peak === null ? null : Number(row.temperature_peak),
+    currentPeak: row.current_peak === null ? null : Number(row.current_peak),
   }));
 
   return (
@@ -112,6 +118,7 @@ export default async function AlarmsPage({ searchParams }: Props) {
             canManage={canManage}
             canEditDetails={canEditDetails}
             canDelete={canDelete}
+            canAnalyze={canAnalyze}
             isFiltered={activeCount > 0}
           />
         )}
@@ -138,7 +145,9 @@ export default async function AlarmsPage({ searchParams }: Props) {
    */  function buildAlarmQuery() {
     let query = supabase
       .from('alarms')
-      .select('id, alarm_code, description, cause, status, created_at, machines(machine_id, name)')
+      .select(
+        'id, alarm_code, description, cause, status, created_at, voltage_peak, temperature_peak, current_peak, machines(machine_id, name)',
+      )
       .order('created_at', { ascending: false });
 
     if (filters.status) query = query.eq('status', filters.status);
