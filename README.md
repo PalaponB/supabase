@@ -11,7 +11,7 @@ EV Charging Fleet Alarm & Maintenance Management System
 | **ฐานข้อมูล** | Supabase (PostgreSQL 15+) พร้อม Row Level Security |
 | **Source Code** | https://github.com/PalaponB/supabase |
 | **CI** | https://github.com/PalaponB/supabase/actions — ✅ ผ่าน |
-| **Deployment** | ยังไม่ได้ deploy (ดูหัวข้อ 5) |
+| **Deployment** | https://ev-chargeops-ten.vercel.app |
 
 ---
 
@@ -471,9 +471,9 @@ npm run typecheck  # ตรวจชนิดข้อมูลด้วย tsc 
 
 ### 5.1 URL ของโปรเจกต์
 
-> **🔗 Deployment URL:** `https://ev-chargeops.vercel.app`
+> **🔗 Deployment URL:** https://ev-chargeops-ten.vercel.app
 >
-> ⚠️ **หมายเหตุ: โปรเจกต์นี้ยังไม่ได้ deploy จริง** — URL ข้างต้นเป็นรูปแบบตัวอย่างตามที่ Vercel จะตั้งให้อัตโนมัติ กรุณา deploy ตามขั้นตอนในหัวข้อ 5.2 แล้ว **แก้ลิงก์ในไฟล์นี้ให้เป็น URL จริงของคุณ** ก่อนส่งอาจารย์
+> ✅ **Deploy แล้ว** — production build ผ่าน (15 routes, lint และ type check ไม่มี error) และเชื่อมต่อ Supabase จริงแล้ว ทดสอบแล้วว่า `/login` ตอบกลับ 200 และหน้าอื่น redirect ไปยังหน้า login ถูกต้อง
 
 ### 5.2 ขั้นตอนการ Deploy
 
@@ -514,8 +514,8 @@ git push -u origin main
 
 เพิ่ม URL ของ Vercel ใน **Supabase > Authentication > URL Configuration**:
 
-- **Site URL** = `https://ev-chargeops.vercel.app`
-- **Redirect URLs** = เพิ่ม `https://ev-chargeops.vercel.app/auth/callback`
+- **Site URL** = `https://ev-chargeops-ten.vercel.app`
+- **Redirect URLs** = เพิ่ม `https://ev-chargeops-ten.vercel.app/auth/callback`
 
 **5) ทดสอบหลัง Deploy**
 
@@ -883,7 +883,7 @@ parseAiAnalysis()  ── ไม่ผ่าน ──▶ ลองใหม่ 
 | 3.10 มี GitHub Actions อย่างน้อย 1 Workflow | ครบ | `.github/workflows/ci.yml` |
 | 3.10 ลำดับ Install → Build → Lint | ครบ | job `verify` เรียงตามลำดับ |
 | 3.10 แสดงผล Passed/Failed ชัดเจน | ครบ | ตารางสรุปในหน้า run + ปุ่ม Fail — ยืนยันแล้วว่ารอบล่าสุดเป็น ✅ success |
-| 3.11 Deploy ด้วย Vercel | **ต้องทำ** | ดูหัวข้อ 5 — ยังไม่ได้ deploy |
+| 3.11 Deploy ด้วย Vercel | ครบ | https://ev-chargeops-ten.vercel.app |
 | 3.12 README ครบ 6 หัวข้อ | ครบ | หัวข้อ 1–6 |
 | 4 รายละเอียดการใช้ AI | ครบ | หัวข้อ 6 + `AI_USAGE_REPORT.md` |
 
