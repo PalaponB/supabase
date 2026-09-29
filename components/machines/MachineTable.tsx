@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { AlertTriangle, Inbox, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, History, Inbox, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { deleteMachine, setMachineStatus } from '@/app/machines/actions';
 import { MACHINE_STATUSES, MACHINE_STATUS_LABEL } from '@/lib/constants';
 import type { MachineStatus } from '@/lib/supabase/types';
@@ -134,7 +135,11 @@ export default function MachineTable({
             <th scope="col" className="table-head px-5 py-3">ประเภท</th>
             <th scope="col" className="table-head px-5 py-3">สถานที่ตั้ง</th>
             <th scope="col" className="table-head px-5 py-3">สถานะ</th>
-            {canManage ? <th scope="col" className="table-head px-5 py-3">จัดการ</th> : null}
+            {/* Shown to every role, not just managers: reading a station's history
+                is a read action, and hiding the link from a Viewer would make
+                the page unreachable for exactly the people who most often need
+                to look something up. */}
+            <th scope="col" className="table-head px-5 py-3">จัดการ</th>
           </tr>
         </thead>
 
@@ -150,7 +155,7 @@ export default function MachineTable({
                 {isEditing ? (
                   // The editor needs the full row width, so it replaces every
                   // cell rather than being crammed into the actions column.
-                  <td colSpan={canManage ? 6 : 5} className="bg-surface-muted/40 px-4 py-4 dark:bg-slate-800/20">
+                  <td colSpan={6} className="bg-surface-muted/40 px-4 py-4 dark:bg-slate-800/20">
                     <EditMachineForm
                       machineUuid={row.id}
                       values={{
@@ -183,21 +188,31 @@ export default function MachineTable({
                         {canManage ? <StatusSelect row={row} /> : null}
                       </div>
                     </td>
-                    {canManage ? (
-                      <td className="whitespace-nowrap px-5 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            onClick={() => setEditingId(row.id)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                            แก้ไข
-                          </button>
-                          <DeleteButton row={row} />
-                        </div>
-                      </td>
-                    ) : null}
+                    <td className="whitespace-nowrap px-5 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/machines/${encodeURIComponent(row.machineId)}`}
+                          className="btn btn-sm"
+                          prefetch={false}
+                        >
+                          <History className="h-3.5 w-3.5" aria-hidden="true" />
+                          ประวัติ
+                        </Link>
+                        {canManage ? (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => setEditingId(row.id)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                              แก้ไข
+                            </button>
+                            <DeleteButton row={row} />
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
                   </>
                 )}
               </tr>

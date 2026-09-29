@@ -17,6 +17,7 @@ import type { AlarmOption, MachineOption } from '@/lib/options';
 import { CreateMaintenanceForm } from '@/components/maintenance/MaintenanceForms';
 import MaintenanceFilters from '@/components/maintenance/MaintenanceFilters';
 import MaintenanceTable, { type MaintenanceRow } from '@/components/maintenance/MaintenanceTable';
+import { MaintenanceCsvButton } from '@/components/csv/ExportCsvButton';
 
 export const metadata: Metadata = { title: 'งานซ่อมบำรุง' };
 
@@ -115,17 +116,31 @@ export default async function MaintenancePage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-slate-50">
-          งานซ่อมบำรุง
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-          {canLog
-            ? canDelete
-              ? 'คุณเพิ่ม แก้ไข เปลี่ยนสถานะ และลบงานซ่อมบำรุงได้'
-              : 'คุณเพิ่ม แก้ไข และเปลี่ยนสถานะได้เฉพาะงานของคุณเอง'
-            : 'บัญชีของคุณดูข้อมูลได้อย่างเดียว'}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-slate-50">
+            งานซ่อมบำรุง
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+            {canLog
+              ? canDelete
+                ? 'คุณเพิ่ม แก้ไข เปลี่ยนสถานะ และลบงานซ่อมบำรุงได้'
+                : 'คุณเพิ่ม แก้ไข และเปลี่ยนสถานะได้เฉพาะงานของคุณเอง'
+              : 'บัญชีของคุณดูข้อมูลได้อย่างเดียว'}
+          </p>
+        </div>
+        {/* Read access to maintenance_records is open to every signed in role
+            (maintenance_records_select is `using (true)`), so the report holds
+            exactly the rows this table shows. The export is built from them
+            rather than from a second query, which keeps it inside that scope. */}
+        {result.error ? null : (
+          <MaintenanceCsvButton
+            rows={rows}
+            total={total}
+            isFiltered={activeCount > 0}
+            offsetMinutes={tz}
+          />
+        )}
       </div>
 
       {canLog ? (

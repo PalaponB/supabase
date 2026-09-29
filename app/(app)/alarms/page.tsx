@@ -16,6 +16,7 @@ import {
 import { CreateAlarmForm, type MachineOption } from '@/components/alarms/AlarmForms';
 import AlarmFilters from '@/components/alarms/AlarmFilters';
 import AlarmTable, { type AlarmRow } from '@/components/alarms/AlarmTable';
+import { AlarmCsvButton } from '@/components/csv/ExportCsvButton';
 
 export const metadata: Metadata = { title: 'Alarm' };
 
@@ -72,19 +73,32 @@ export default async function AlarmsPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-slate-50">
-          บันทึก Alarm
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
-          {canEditDetails
-            ? canDelete
-              ? 'คุณเพิ่ม แก้ไข เปลี่ยนสถานะ และลบ Alarm ได้'
-              : 'คุณเปิด แก้ไข และเปลี่ยนสถานะ Alarm ได้ แต่ลบไม่ได้'
-            : canManage
-              ? 'คุณเปลี่ยนสถานะ Alarm ได้ แต่เปิด แก้ไข หรือลบรายการเองไม่ได้'
-              : 'บัญชีของคุณดูข้อมูลได้อย่างเดียว'}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink dark:text-slate-50">
+            บันทึก Alarm
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted dark:text-slate-400">
+            {canEditDetails
+              ? canDelete
+                ? 'คุณเพิ่ม แก้ไข เปลี่ยนสถานะ และลบ Alarm ได้'
+                : 'คุณเปิด แก้ไข และเปลี่ยนสถานะ Alarm ได้ แต่ลบไม่ได้'
+              : canManage
+                ? 'คุณเปลี่ยนสถานะ Alarm ได้ แต่เปิด แก้ไข หรือลบรายการเองไม่ได้'
+                : 'บัญชีของคุณดูข้อมูลได้อย่างเดียว'}
+          </p>
+        </div>
+        {/* Reading the log is a read action, so every role may export it. The
+            file is built from the rows the query below already returned, which
+            keeps the report inside the same RLS scope as the table. */}
+        {result.error ? null : (
+          <AlarmCsvButton
+            rows={rows}
+            total={total}
+            isFiltered={activeCount > 0}
+            offsetMinutes={tz}
+          />
+        )}
       </div>
 
       {canEditDetails ? (
