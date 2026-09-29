@@ -13,7 +13,7 @@ import {
   readTimezoneOffset,
   type SearchParams,
 } from '@/lib/filters';
-import type { AlarmOption, MachineOption } from '@/lib/options';
+import type { AlarmOption, MachineOption, TechnicianOption } from '@/lib/options';
 import { CreateMaintenanceForm } from '@/components/maintenance/MaintenanceForms';
 import MaintenanceFilters from '@/components/maintenance/MaintenanceFilters';
 import MaintenanceTable, { type MaintenanceRow } from '@/components/maintenance/MaintenanceTable';
@@ -48,6 +48,9 @@ export default async function MaintenancePage({ searchParams }: Props) {
 
   if (filters.status) query = query.eq('status', filters.status);
   if (filters.machineId) query = query.eq('machine_id', filters.machineId);
+  // Technician is one of the filter conditions the specification asks for, so
+  // "which jobs is each technician carrying" is a one-click question.
+  if (filters.technicianId) query = query.eq('technician_id', filters.technicianId);
 
   const start = rangeStart(filters.from, tz);
   const end = rangeEnd(filters.to, tz);
@@ -62,7 +65,7 @@ export default async function MaintenancePage({ searchParams }: Props) {
     query = query.or(`action_taken.ilike.${term},alarms.alarm_code.ilike.${term}`);
   }
 
-  const [result, machineResult, alarmResult, totalResult] = await Promise.all([
+  const [result, machineResult, alarmResult, totalResult, technicianResult] = await Promise.all([
     query,
     supabase.from('machines').select('id, machine_id, name').order('machine_id'),
     supabase
@@ -70,12 +73,25 @@ export default async function MaintenancePage({ searchParams }: Props) {
       .select('id, alarm_code, machine_id')
       .order('created_at', { ascending: false }),
     supabase.from('maintenance_records').select('*', { count: 'exact', head: true }),
+    // The dropdown lists every profile that can carry a job, not only the ones
+    // already on the current page of rows, so filtering by a technician who has
+    // no visible job is still possible.
+    supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('role', ['Admin', 'Technician'])
+      .order('full_name'),
   ]);
 
   const machines: MachineOption[] = (machineResult.data ?? []).map((machine) => ({
     id: machine.id,
     machineId: machine.machine_id,
     name: machine.name,
+  }));
+
+  const technicians: TechnicianOption[] = (technicianResult.data ?? []).map((profile) => ({
+    id: profile.id,
+    fullName: profile.full_name,
   }));
 
   const alarms: AlarmOption[] = (alarmResult.data ?? []).map((alarm) => ({
@@ -158,6 +174,7 @@ export default async function MaintenancePage({ searchParams }: Props) {
       <Suspense fallback={<div className="card h-24 animate-pulse" />}>
         <MaintenanceFilters
           machines={machines}
+          technicians={technicians}
           activeCount={activeCount}
           shown={rows.length}
           total={total}

@@ -1,23 +1,32 @@
 'use client';
 
 import FilterShell from '@/components/filter/FilterShell';
-import { DateRangeFilter, MachineFilter, StatusFilter } from '@/components/filter/FilterFields';
+import {
+  DateRangeFilter,
+  MachineFilter,
+  StatusFilter,
+  TechnicianFilter,
+} from '@/components/filter/FilterFields';
 import { MAINTENANCE_STATUSES, MAINTENANCE_STATUS_LABEL } from '@/lib/constants';
-import type { MachineOption } from '@/lib/options';
+import type { MachineOption, TechnicianOption } from '@/lib/options';
 
 /**
- * Five conditions combined with AND: status, machine, an inclusive date range
- * on created_at, and a free text search across the job notes and alarm code.
+ * Six conditions combined with AND: status, machine, technician, an inclusive
+ * date range on created_at, and a free text search across the job notes and
+ * alarm code. The specification asks for at least two; having one per column an
+ * operator actually reasons about is what makes the list usable at a glance.
  */
-const FIELDS = ['search', 'status', 'machine_id', 'from', 'to'] as const;
+const FIELDS = ['search', 'status', 'machine_id', 'technician_id', 'from', 'to'] as const;
 
 export default function MaintenanceFilters({
   machines,
+  technicians,
   activeCount,
   shown,
   total,
 }: {
   machines: MachineOption[];
+  technicians: TechnicianOption[];
   activeCount: number;
   shown: number;
   total: number;
@@ -40,6 +49,7 @@ export default function MaintenanceFilters({
         labels={MAINTENANCE_STATUS_LABEL}
       />
       <MachineFilter options={machines} />
+      <TechnicianFilter options={technicians} />
       <DateRangeFilter />
     </FilterShell>
   );

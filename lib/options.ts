@@ -30,3 +30,15 @@ export type AlarmOption = {
 export function machineLabel(option: MachineOption): string {
   return `${option.machineId} — ${option.name}`;
 }
+
+/**
+ * A person who can be assigned a maintenance job. Only Admin and Technician
+ * appear, because a Viewer never becomes a technician_id on a record.
+ *
+ * `fullName` may be null: the profiles table allows a blank name, so the UI
+ * falls back to the id rather than rendering an empty dropdown entry.
+ */
+export type TechnicianOption = {
+  id: string;
+  fullName: string | null;
+};

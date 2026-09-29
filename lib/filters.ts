@@ -156,6 +156,8 @@ export type MaintenanceFilters = {
   search: string;
   status: MaintenanceStatus | null;
   machineId: string;
+  /** Technician UUID, from the dropdown. */
+  technicianId: string;
   from: string | null;
   to: string | null;
 };
@@ -167,15 +169,23 @@ export function readMaintenanceFilters(params: SearchParams): MaintenanceFilters
     machineId: /^[0-9a-f-]{36}$/i.test(readParam(params, 'machine_id'))
       ? readParam(params, 'machine_id')
       : '',
+    technicianId: /^[0-9a-f-]{36}$/i.test(readParam(params, 'technician_id'))
+      ? readParam(params, 'technician_id')
+      : '',
     from: readDate(params, 'from'),
     to: readDate(params, 'to'),
   };
 }
 
 export function maintenanceFilterCount(filters: MaintenanceFilters): number {
-  return [filters.search, filters.status, filters.machineId, filters.from, filters.to].filter(
-    Boolean,
-  ).length;
+  return [
+    filters.search,
+    filters.status,
+    filters.machineId,
+    filters.technicianId,
+    filters.from,
+    filters.to,
+  ].filter(Boolean).length;
 }
 
 /** Serialises filters back to a query string, dropping empty values. */

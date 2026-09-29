@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFilter } from './FilterShell';
-import { machineLabel, type MachineOption } from '@/lib/options';
+import { machineLabel, type MachineOption, type TechnicianOption } from '@/lib/options';
 import type { AlarmStatus, MachineStatus, MaintenanceStatus } from '@/lib/supabase/types';
 
 /**
@@ -123,6 +123,45 @@ export function MachineFilter({
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {machineLabel(option)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * Filters by the technician who logged the job. The specification lists
+ * Technician as one of the expected filter conditions, and it answers the
+ * question the other filters cannot: whose queue is long.
+ *
+ * A profile with a blank name still gets an entry, labelled by its id, because
+ * an unnamed technician would otherwise be invisible and unfilterable.
+ */
+export function TechnicianFilter({
+  options,
+  width = 'w-48',
+}: {
+  options: TechnicianOption[];
+  width?: string;
+}) {
+  const { values, setValue } = useFilter();
+
+  return (
+    <div className={width}>
+      <label htmlFor="filter-technician_id" className="field-label mb-1.5 block">
+        ช่างซ่อม
+      </label>
+      <select
+        id="filter-technician_id"
+        value={values.technician_id ?? ''}
+        onChange={(event) => setValue('technician_id', event.target.value)}
+        className="field"
+      >
+        <option value="">ทุกคน</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.fullName?.trim() || 'ไม่ระบุชื่อ'}
           </option>
         ))}
       </select>
