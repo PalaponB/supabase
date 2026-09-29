@@ -29,7 +29,8 @@ where n.nspname = 'public'
 -- ---------------------------------------------------------------------
 -- 3. Policies: 15 total (profiles 3, machines 4, alarms 4, maint 4)
 -- ---------------------------------------------------------------------
-select '3. policies: ' || table_name as check_name,
+-- pg_policies exposes the column as 'tablename', not 'table_name'.
+select '3. policies: ' || tablename as check_name,
        count(*)::text || ' policy/policies' as result
 from pg_policies
 where schemaname = 'public'
@@ -76,16 +77,20 @@ where table_schema = 'public'
 -- 7. Seeded users and their roles
 --    Expect 1 Admin and 2 Technician.
 -- ---------------------------------------------------------------------
+-- The application role lives in public.profiles. auth.users also has a column
+-- called 'role', but that is the Postgres role ('authenticated') and would
+-- report the same value for every account, so the join is required.
 select '7. users' as check_name,
-       role::text as result,
-       email as detail
-from auth.users
-where id in (
+       p.role::text as result,
+       u.email      as detail
+from public.profiles p
+join auth.users u on u.id = p.id
+where p.id in (
   '11111111-1111-4111-8111-111111111111',
   '22222222-2222-4222-8222-222222222222',
   '33333333-3333-4333-8333-333333333333'
 )
-order by role;
+order by p.role;
 
 -- ---------------------------------------------------------------------
 -- 8. Seed row counts
