@@ -16,10 +16,19 @@
  */
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
+import { configurationErrorResponse, isSupabaseConfigured } from '@/lib/supabase/config-error';
 
 const PUBLIC_ROUTES = ['/login', '/unauthorized', '/auth/callback'];
 
 export async function middleware(request: NextRequest) {
+  // Checked before anything else: updateSession() builds a Supabase client
+  // immediately, and without these two variables that throws. Catching it here
+  // turns an unexplained 500 on every route into a page that names the missing
+  // variables and how to set them.
+  if (!isSupabaseConfigured()) {
+    return configurationErrorResponse(request);
+  }
+
   const { supabaseResponse, user, pathname } = await updateSession(request);
 
   const isPublicRoute = PUBLIC_ROUTES.some(
